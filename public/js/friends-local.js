@@ -6,15 +6,16 @@
     const stamp=()=>Math.floor(Date.now()/1000);
     const uuid=()=>crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
     const fail=code=>{throw new Error(code);};
-    let data,online=false,flight=null,received=[],activity='online',active=true;
+    const makeLogin=()=>'g'+Array.from(crypto.getRandomValues(new Uint8Array(5)),b=>'abcdefghjkmnpqrstuvwxyz23456789'[b%31]).join('');
+    let data,online=false,flight=null,received=[],activity='online',active=true,pushAvailable=false;
     const ready=(async()=>{
         const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(RCNet.identity()));
         const id=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
         try{data=JSON.parse(localStorage.getItem(KEY));}catch(e){}
         if(!data || data.id!==id || data.version!==1) {
             let old;try{old=JSON.parse(localStorage.getItem('rc_friends_cache'));}catch(e){}
-            data={version:1,id,login:old?.me?.login||'player_'+id.slice(0,8),dnd:false,contacts:{},incoming:{},outgoing:{},blocked:{},favorites:{},recent:{},messages:{},invites:{},outbox:[],seen:{},cancelled:{}};
-            if(!/^[a-z][a-z0-9_]{2,19}$/.test(data.login))data.login='player_'+id.slice(0,8);
+            data={version:1,id,login:old?.me?.login||makeLogin(),dnd:false,contacts:{},incoming:{},outgoing:{},blocked:{},favorites:{},recent:{},messages:{},invites:{},outbox:[],seen:{},cancelled:{}};
+            if(!/^[a-z][a-z0-9_]{2,19}$/.test(data.login))data.login=makeLogin();
         }
         save();
     })();
@@ -43,6 +44,7 @@
         const spare=Object.values(data.contacts).filter(p=>!p.friendship&&!data.incoming[p.id]&&!data.outgoing[p.id]&&!data.blocked[p.id]&&!data.recent[p.id]).sort((a,b)=>(b.updated||0)-(a.updated||0));
         spare.slice(100).forEach(p=>delete data.contacts[p.id]);
         try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){fail('storage_full');}
+        try{window.RCNotifications?.syncLocal(data);}catch(e){}
     }
     function contact(p) {
         if(!p || !/^[a-f0-9]{64}$/.test(p.id)||p.id===data.id||typeof p.login!=='string'||typeof p.name!=='string')return null;
@@ -66,7 +68,7 @@
             if(['pending','accepted'].includes(inv.state)&&inv.expires<=stamp())inv.state='expired';
             if(inv.sender===data.id && window.RCNet?.connected && RCNet.code===inv.room)inv.state='joined';
         }
-        return {me:{...me(),status:active?activity:'offline'},dnd:data.dnd,relayOnline:online,
+        return {me:{...me(),status:active?activity:'offline'},dnd:data.dnd,relayOnline:online,pushAvailable,
             friends:profiles.filter(p=>relation(p.id)==='friend').map(view),
             incoming:Object.keys(data.incoming).filter(id=>!data.blocked[id]).map(id=>view(data.contacts[id])),
             outgoing:Object.keys(data.outgoing).filter(id=>!data.blocked[id]).map(id=>view(data.contacts[id])),
@@ -144,6 +146,12 @@
     }
     async function poll(query='') {
         await ready;
+        const inbox=(window.RCNotifications?.inbox()||[]).filter(e=>e.target===data.id);
+        if(inbox.length){
+            const previous=JSON.stringify(data);
+            try{inbox.forEach(receive);save();window.RCNotifications.acknowledge(inbox);}
+            catch(e){data=JSON.parse(previous);throw e;}
+        }
         if(flight){await flight;if(query)return poll(query);return;}
         flight=(async()=>{
             try {
@@ -151,7 +159,8 @@
                 const pending=data.outbox.filter(p=>p.expires>stamp());
                 const urgent=p=>p.payload.kind!=='ack'&&p.expires<stamp()+120;
                 const batch=[...pending.filter(urgent).slice(0,8),...pending.filter(p=>p.payload.kind==='ack').slice(0,8),...pending.filter(p=>p.payload.kind!=='ack'&&!urgent(p)).slice(0,16)];
-                const result=await rpc({op:'poll',profile:me(),active,activity,dnd:data.dnd,watch:Object.keys(data.contacts).slice(0,250),packets:batch,received:beforeReceived,query});
+                const result=await rpc({op:'poll',profile:me(),active,activity,dnd:data.dnd,watch:Object.keys(data.contacts).slice(0,250),packets:batch,received:beforeReceived,query,...window.RCNotifications?.delivery()});
+                pushAvailable=!!result.pushAvailable;
                 const backup=JSON.stringify(data);
                 try {
                     for(const p of Object.values(data.contacts))p.status='offline';
@@ -164,6 +173,7 @@
                     const sent=new Set(batch.map(p=>p.id));
                     data.outbox=[...data.outbox.filter(p=>!sent.has(p.id)),...data.outbox.filter(p=>sent.has(p.id))];
                     save();received=(result.events||[]).map(e=>e.id);
+                    try{window.RCNotifications?.notify(result.events||[],data.id);}catch(e){}
                 }catch(e){data=JSON.parse(backup);throw e;}
                 return result;
             }catch(e){online=false;throw e;}
@@ -230,7 +240,7 @@
                         if(ids.length){enqueue(id,{kind:'read',ids,friendship:p.friendship});rows.forEach(m=>{if(m.sender===id)m.seen=true;});}
                         save();return {messages:rows.slice(-100)};
                     }else if(action==='invite') {
-                        if(!online||p.status==='offline')fail('offline');if(p.status==='dnd')fail('dnd');if(p.status!=='online')fail('busy');
+                        if(!online||(p.status==='offline'&&!pushAvailable))fail('offline');if(p.status==='dnd')fail('dnd');if(!['online','offline'].includes(p.status))fail('busy');
                         const inv=uuid(),room=await rpc({op:'reserve',target:id,token:fields.token,invite:inv});
                         data.invites[inv]={id:inv,sender:data.id,receiver:id,room:room.code,expires:room.expires,state:'pending'};
                         enqueue(id,{kind:'invite',room:room.code,expires:room.expires,friendship:p.friendship},inv,90);
@@ -255,5 +265,5 @@
     function remember(p) {
         ready.then(()=>{if(contact(p)){data.recent[p.id]=stamp();save();window.RCFriends?.sync();}}).catch(()=>{});
     }
-    window.RCLocalFriends={ready,request,code:()=>data?code():null,profile:()=>data?me():{},remember,get online(){return online;}};
+    window.RCLocalFriends={ready,request,code:()=>data?code():null,profile:()=>data?me():{},remember,syncNotifications:()=>{if(data)window.RCNotifications?.syncLocal(data);},get online(){return online;}};
 })();

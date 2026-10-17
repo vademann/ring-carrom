@@ -67,14 +67,15 @@
         if(state.busy)return;
         state.busy=true;
         state.revision++;
-        document.querySelectorAll('#scr-friends button,#friendInviteBanner button,#friendLoginSave,#friendDnd').forEach(b=>b.disabled=true);
+        const controls=[...document.querySelectorAll('#scr-friends button:not(#friendsBack),#friendInviteBanner button,#friendLoginSave,#friendDnd')].map(b=>[b,b.disabled]);
+        controls.forEach(([b])=>b.disabled=true);
         try {
             const data=await api(action,fields);
             if(data.me)setData(data);
             if(done)await done(data);
             notice(state.data?.queued?tr('Сохранено на телефоне. Ждёт доставки: ','Saved on this phone. Queued: ')+state.data.queued:tr('Готово','Done'));
         }catch(error){notice(errorText(error),true);}
-        finally{state.busy=false;render();}
+        finally{state.busy=false;controls.forEach(([b,disabled])=>b.disabled=disabled);render();}
     }
     function statusText(p) {
         if(!state.connected)return tr('Статус не обновлён: нет связи','Status unavailable: disconnected');
@@ -101,7 +102,7 @@
         }
         act(tr('Профиль','Profile'),()=>viewProfile(p));
         if(p.relationship==='friend') {
-            act(tr('Пригласить','Invite'),()=>invite(p),'primary');actions.lastChild.disabled=state.busy || !state.connected || p.status!=='online';
+            act(tr('Пригласить','Invite'),()=>invite(p),'primary');actions.lastChild.disabled=state.busy || !state.connected || !(p.status==='online'||(p.status==='offline'&&state.data.pushAvailable));
             const unread=state.data.unread[p.id]||0;
             act(tr('Сообщения','Messages')+(unread?' ('+unread+')':''),()=>openChat(p));
             act(p.favorite?tr('Убрать из избранного','Unfavorite'):tr('В избранное','Favorite'),()=>run('favorite',{target:p.id,enabled:!p.favorite}));

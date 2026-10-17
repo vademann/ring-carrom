@@ -9,6 +9,7 @@ import os
 import time
 import career
 import social_relay
+from push_delivery import push
 from pathlib import Path
 from urllib.parse import urlsplit
 if sys.platform == 'win32':
@@ -550,7 +551,14 @@ async def social_endpoint(request):
         body = await request.json()
         if not isinstance(body,dict):
             raise social_relay.RelayError('request')
-        result = social_relay.execute(body,rooms,tokens,social_room_status)
+        # Authenticate before making any directory request on the caller's behalf.
+        social_relay.identity(body.get('identity'))
+        can_push=False
+        if body.get('op')=='reserve' and isinstance(body.get('target'),str):
+            can_push=await push.has_route(body['target'])
+        result = social_relay.execute(body,rooms,tokens,social_room_status,can_push)
+        result['pushAvailable']=push.available
+        push.enqueue(body,result)
         return web.json_response(result,headers=POLL_HEADERS)
     except social_relay.RelayError as error:
         return web.json_response({'error':str(error)},status=400,headers=POLL_HEADERS)
@@ -770,6 +778,8 @@ def create_app():
     app.router.add_static('/', ROOT/'public', show_index=False)
     app.cleanup_ctx.append(room_cleanup)
     app.on_shutdown.append(shutdown)
+    async def close_push(app):await push.close()
+    app.on_shutdown.append(close_push)
     return app
 
 if __name__ == '__main__':

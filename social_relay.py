@@ -39,7 +39,7 @@ def can_join(room,key):
     return not getattr(room,'invited_id',None) or (
         room.invited_id==key and room.invite_accepted and room.invite_expires>time.time())
 
-def execute(body,rooms,tokens,room_status):
+def execute(body,rooms,tokens,room_status,push_available=False):
     uid=identity(body.get('identity'))
     prune()
     now=time.monotonic()
@@ -86,9 +86,9 @@ def execute(body,rooms,tokens,room_status):
         found=tokens.get(str(body.get('token','')))
         other=body.get('target')
         target=peers.get(other) if isinstance(other,str) else None
-        if not target:raise RelayError('offline')
-        if target['status']=='dnd':raise RelayError('dnd')
-        if target['status']!='online':raise RelayError('busy')
+        if not target and not push_available:raise RelayError('offline')
+        if target and target['status']=='dnd':raise RelayError('dnd')
+        if target and target['status']!='online':raise RelayError('busy')
         if not found or found[1]!=0 or found[0].closed or found[0].matched or found[0].quick or found[0].players[0].career_id!=uid:
             raise RelayError('room_unavailable')
         inv=body.get('invite')

@@ -31,6 +31,7 @@ window.RCDaily = (() => {
         const balance = localStorage.getItem("rc_coins");
         localStorage.setItem("rc_login_rewards", JSON.stringify({lastDay:state.today, day:state.day}));
         localStorage.setItem("rc_coins", String((balance === null ? 500 : Number(balance) || 0) + state.reward));
+        window.dispatchEvent(new Event('rc-daily-claimed'));
         return state.reward;
     }
     return {rewards, status, claim, dayNumber};
