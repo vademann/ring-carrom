@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ring Carrom</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+    body {
+        background: #070908;
+        color: #f1f3f0;
+        font-family: 'HarmonyOS Sans', 'Segoe UI', system-ui, sans-serif;
+        user-select: none; -webkit-user-select: none;
+        touch-action: none;
+    }
+    /* тёмные переливающиеся градиенты вместо плоского чёрного */
+    body::before {
+        content: ""; position: fixed; inset: -25%; z-index: -1; filter: blur(50px);
+        background:
+            radial-gradient(42% 36% at 18% 22%, rgba(22, 66, 50, 0.55), transparent 72%),
+            radial-gradient(36% 42% at 82% 18%, rgba(26, 42, 84, 0.48), transparent 72%),
+            radial-gradient(46% 40% at 68% 82%, rgba(66, 30, 54, 0.42), transparent 72%),
+            radial-gradient(40% 36% at 25% 86%, rgba(18, 58, 64, 0.45), transparent 72%),
+            radial-gradient(30% 30% at 50% 50%, rgba(10, 34, 30, 0.35), transparent 75%);
+        will-change: opacity;
+        animation: shimmer 8s ease-in-out infinite alternate;
+    }
+    @keyframes shimmer {
+        0%   { opacity: .85; }
+        100% { opacity: 1; }
+    }
+
+    .screen { display: none; position: fixed; inset: 0 0 58px 0; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* место под рекламный баннер */
+    #adslot {
+        position: fixed; left: 0; right: 0; bottom: 0; height: 52px; z-index: 4;
+        display: flex; align-items: center; justify-content: center;
+        border-top: 1px dashed rgba(255,255,255,.14);
+        background: rgba(8,10,9,.6);
+        font-size: 10px; letter-spacing: 3px; color: #3c443f; pointer-events: none;
+    }
+
+    /* ползунок позиции кольца — всегда виден, окрашен в цвет кольца */
+    #sliderRow { padding: 2px 8px 0; --ringcol: 217,72,64; display: flex; justify-content: center; }
+    #sliderRow.off { opacity: .35; pointer-events: none; }
+    #ringSlider {
+        -webkit-appearance: none; appearance: none; width: 100%; height: 30px;
+        background: transparent; outline: none; touch-action: none;
+    }
+    #ringSlider::-webkit-slider-runnable-track {
+        height: 4px; border-radius: 2px;
+        background: rgba(var(--ringcol),.45);
+    }
+    #ringSlider::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none; width: 24px; height: 24px;
+        border-radius: 50%; background: rgb(var(--ringcol)); margin-top: -10px;
+        border: 2px solid rgba(255,255,255,.55); box-shadow: 0 2px 8px rgba(0,0,0,.5);
+    }
+    #ringSlider::-moz-range-track {
+        height: 4px; border-radius: 2px;
+        background: rgba(var(--ringcol),.45);
+    }
+    #ringSlider::-moz-range-thumb {
+        width: 22px; height: 22px; border-radius: 50%; background: rgb(var(--ringcol));
+        border: 2px solid rgba(255,255,255,.55);
+    }
+
+    /* флаги языка — маленькие, слева */
+    .flagbtn {
+        width: 30px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,.16);
+        background: none; cursor: pointer; padding: 0; overflow: hidden; opacity: .4;
+    }
+    .flagbtn.on { opacity: 1; border-color: rgba(255,255,255,.6); }
+    .flagbtn + .flagbtn { margin-left: 6px; }
+    .flagbtn svg { display: block; width: 100%; height: 100%; }
+
+    /* монеты на главном экране */
+    .coinschip { display: flex; align-items: center; gap: 7px; }
+    .coinschip .coinicon { width: 22px; height: 22px; }
+    .coinschip b { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+    /* бейдж награды на кнопке бота */
+    .badge {
+        display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
+        padding: 2px 9px; border-radius: 999px; vertical-align: 1px;
+        background: rgba(0,0,0,.10); border: 1px solid rgba(0,0,0,.26);
+        color: #7a5c10; font-size: 11px; font-weight: 700; letter-spacing: .3px;
+    }
+    .badge .coinmini {
+        width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+        background: radial-gradient(circle at 35% 30%, #ffe9a8, #e2b53c 55%, #9a7517);
+    }
+
+    /* магазин: карточки с кнопками покупки */
+    .shopitem { padding: 9px 9px 10px; }
+    .shopitem.pop { animation: buypop .7s ease; }
+    @keyframes buypop {
+        0% { transform: scale(1); box-shadow: 0 0 0 rgba(226,181,60,0); }
+        30% { transform: scale(1.07); box-shadow: 0 0 26px rgba(226,181,60,.65); }
+        60% { transform: scale(.98); }
+        100% { transform: scale(1); box-shadow: 0 0 0 rgba(226,181,60,0); }
+    }
+    .buybtn {
+        width: 100%; margin-top: 7px; padding: 7px 6px; border-radius: 999px;
+        border: 1px solid rgba(226,181,60,.6); background: rgba(226,181,60,.14);
+        color: #e2b53c; font-size: 11px; font-weight: 700; letter-spacing: .5px;
+        cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+        font-family: inherit;
+    }
+    .buybtn .coinmini {
+        width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+        background: radial-gradient(circle at 35% 30%, #ffe9a8, #e2b53c 55%, #9a7517);
+    }
+    .buybtn.select { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: #f1f3f0; }
+    .buybtn.selected { border-color: rgba(110,220,160,.6); background: rgba(110,220,160,.12); color: #6ed6a0; }
+    .buybtn.locked { border-color: rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #5a615c; cursor: default; }
+    .buybtn.locked .coinmini { opacity: .45; }
+    .buybtn:not(.locked):active { filter: brightness(1.25); }
+
+    /* настройки: витрина стилей */
+    .shopgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .shopitem {
+        border: 1px solid rgba(255,255,255,.12); background: #121513; color: #f1f3f0;
+        border-radius: 14px; padding: 10px 8px; cursor: pointer; text-align: center; position: relative;
+    }
+    .shopitem.selected { border-color: rgba(255,255,255,.6); background: #1a1f1c; }
+    .shopitem .prev {
+        height: 44px; border-radius: 9px; margin-bottom: 7px;
+        border: 1px solid rgba(0,0,0,.4); position: relative; overflow: hidden;
+    }
+    .shopitem .prev .ringdot {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+        border-radius: 50%; border: 5px solid #d94840; width: 26px; height: 26px;
+    }
+    .shopitem .pucks2 { display: flex; gap: 6px; justify-content: center; align-items: center; height: 44px; }
+    .shopitem .pk { width: 20px; height: 20px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,.5); }
+    .shopitem .nm { font-size: 12px; margin-bottom: 4px; }
+    .shopitem .st { font-size: 10px; color: #8a938c; letter-spacing: .5px; }
+    .shopitem .st.price { color: #e2b53c; }
+    .sect { font-size: 11px; letter-spacing: 2.4px; color: #8a938c; margin: 8px 0 2px; }
+    .coinsrow {
+        display: flex; align-items: center; gap: 10px; padding: 15px 20px;
+        border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: #121513;
+    }
+    .coinicon {
+        width: 26px; height: 26px; border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #ffe9a8, #e2b53c 55%, #9a7517);
+        box-shadow: 0 2px 6px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.25);
+    }
+    .coinsrow b { font-size: 21px; font-variant-numeric: tabular-nums; }
+    .coinsrow .lab { font-size: 10px; letter-spacing: 2px; color: #8a938c; margin-left: auto; }
+
+    /* ── Меню ── */
+    #scr-menu { align-items: center; justify-content: space-between; padding: 34px 28px 96px; }
+    .menu-top { width: 100%; display: flex; justify-content: flex-end; }
+    .iconbtn {
+        width: 40px; height: 40px; border-radius: 50%;
+        border: 1px solid rgba(255,255,255,.12); background: none; color: #f1f3f0;
+        font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .iconbtn.off { color: #5a615c; }
+    .wordmark {
+        text-align: center; font-weight: 200; font-size: 42px;
+        letter-spacing: 12px; line-height: 1.28; margin-left: 12px;
+    }
+    .wordmark small {
+        display: block; font-size: 10px; letter-spacing: 5px;
+        color: #5a615c; margin-top: 14px; font-weight: 400;
+    }
+    .wordmark .rule {
+        width: 34px; height: 1px; background: #3c443f; margin: 20px auto 0;
+    }
+    .menu-bottom { width: 100%; display: flex; flex-direction: column; gap: 26px; align-items: center; }
+    .seg { display: flex; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 3px; gap: 3px; }
+    .seg button {
+        border: none; background: none; color: #8a938c; font-size: 12px;
+        padding: 7px 15px; border-radius: 999px; cursor: pointer; letter-spacing: .4px;
+    }
+    .seg button.on { background: #f1f3f0; color: #0a0c0b; font-weight: 600; }
+    .menu-btns { display: flex; flex-direction: column; gap: 11px; width: 100%; max-width: 300px; }
+    .btn {
+        border: 1px solid rgba(255,255,255,.13); background: #131614; color: #f1f3f0;
+        border-radius: 999px; padding: 14px; font-size: 14px; letter-spacing: .6px; cursor: pointer;
+    }
+    .btn:active { background: #1b201d; }
+    .btn.primary { background: #f1f3f0; color: #0a0c0b; font-weight: 600; border-color: transparent; }
+    .btn.primary:active { background: #d8ddd9; }
+    .menu-foot { font-size: 10px; color: #3c443f; letter-spacing: 2px; }
+
+    /* ── Игровой экран ── */
+    .bar {
+        display: flex; align-items: center; justify-content: center;
+        padding: 10px 14px 4px; flex-shrink: 0; min-height: 58px;
+    }
+    .bar .iconbtn { width: 38px; height: 38px; font-size: 19px; }
+    .bar-mid { display: flex; align-items: center; justify-content: center; gap: 14px; font-variant-numeric: tabular-nums; flex: 1; }
+    .side { display: flex; align-items: center; gap: 7px; }
+    .side .pts { font-size: 21px; font-weight: 600; min-width: 16px; text-align: center; }
+    .side .nm { font-size: 9px; color: #5a615c; letter-spacing: 1.4px; text-transform: uppercase; }
+    .side.right { flex-direction: row-reverse; }
+    .side.right .nm { text-align: right; }
+    .side.right .pts { text-align: center; }
+    .tdot { width: 7px; height: 7px; border-radius: 50%; background: #d94840; flex-shrink: 0;
+            box-shadow: 0 0 8px rgba(217,72,64,.8); transition: all .3s; }
+    .tdot.p2 { background: #e2a33c; box-shadow: 0 0 8px rgba(226,163,60,.8); }
+    .tdot.dim { background: #2a2f2c; box-shadow: none; }
+    .bar-note { font-size: 10px; color: #5a615c; letter-spacing: 1.6px; text-transform: uppercase; }
+    .stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+    canvas { display: block; }
+    #hint {
+        position: fixed; bottom: 118px; left: 0; right: 0; text-align: center;
+        font-size: 11.5px; color: #5a615c; pointer-events: none; transition: opacity .5s;
+        padding: 0 30px;
+    }
+    #hint.hide { opacity: 0; }
+    #toast {
+        position: fixed; top: 74px; left: 50%; transform: translateX(-50%);
+        background: rgba(20,24,22,.92); border: 1px solid rgba(255,255,255,.1);
+        border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 600;
+        opacity: 0; transition: opacity .35s; pointer-events: none; z-index: 5;
+    }
+    #toast.show { opacity: 1; }
+    #thinking {
+        position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
+        font-size: 11px; letter-spacing: 2px; color: #e2a33c; text-transform: uppercase;
+        display: none; z-index: 5;
+    }
+    #thinking.show { display: block; }
+    #thinking::after { content: ""; animation: dots 1.2s steps(4) infinite; }
+    @keyframes dots { 0% {content: "";} 25% {content: ".";} 50% {content: "..";} 75% {content: "...";} }
+
+    /* ── Тренировка ── */
+    #scr-training { padding: 0 0 20px; }
+    .bar-title { font-size: 12px; letter-spacing: 3px; color: #8a938c; }
+    .cards { display: flex; flex-direction: column; gap: 12px; padding: 18px 22px; overflow-y: auto; }
+    .card {
+        text-align: left; border: 1px solid rgba(255,255,255,.1); background: #121513;
+        border-radius: 18px; padding: 19px 21px; cursor: pointer; color: #f1f3f0;
+    }
+    .card:active { background: #171b18; }
+    .card .c-t { font-size: 15.5px; font-weight: 600; margin-bottom: 5px; }
+    .card .c-d { font-size: 12.5px; color: #8a938c; line-height: 1.45; }
+    .card .c-s { font-size: 11px; color: #5a615c; margin-top: 9px; letter-spacing: .5px; }
+
+    /* ── Модальные окна ── */
+    .overlay {
+        display: none; position: fixed; inset: 0; z-index: 10;
+        background: rgba(5,7,6,.78); backdrop-filter: blur(6px);
+        align-items: center; justify-content: center; padding: 24px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+        background: #141715; border: 1px solid rgba(255,255,255,.08);
+        border-radius: 22px; padding: 27px 28px; text-align: center; width: 100%; max-width: 320px;
+    }
+    .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .modal .res { font-size: 30px; font-weight: 200; margin: 12px 0 20px; font-variant-numeric: tabular-nums; }
+    .modal .res small { display: block; font-size: 11px; color: #5a615c; margin-top: 7px; letter-spacing: 1px; }
+    .mrow { display: flex; gap: 9px; }
+    .mrow .btn { flex: 1; padding: 12px; font-size: 13.5px; }
+    .btn.ghost { background: none; }
+
+    /* ── Обучение ── */
+    #tut .modal { max-width: 340px; padding: 30px 30px 24px; }
+    .tut-num { font-size: 11px; letter-spacing: 3px; color: #5a615c; margin-bottom: 14px; }
+    .tut-h { font-size: 19px; font-weight: 600; margin-bottom: 12px; }
+    .tut-b { font-size: 13.5px; line-height: 1.65; color: #b9c1bb; text-align: left; }
+    .tut-b b { color: #f1f3f0; font-weight: 600; }
+    .tut-nav { display: flex; gap: 9px; margin-top: 24px; }
+    .tut-nav .btn { flex: 1; padding: 11px; font-size: 13px; }
+    .tut-dots { display: flex; gap: 6px; justify-content: center; margin-top: 16px; }
+    .tut-dots i { width: 5px; height: 5px; border-radius: 50%; background: #2a2f2c; }
+    .tut-dots i.on { background: #f1f3f0; }
+
+    #testlog {
+        position: fixed; inset: auto 0 0 0; max-height: 45%; overflow-y: auto; z-index: 50;
+        background: #060807; color: #9fe0b7; font: 11px/1.5 monospace; padding: 10px 14px;
+        border-top: 1px solid #222; white-space: pre-wrap; display: none;
+    }
+
+    /* онлайн */
+    .code {
+        font-size: 44px; font-weight: 200; letter-spacing: 14px; margin-left: 14px;
+        color: #f1f3f0; font-variant-numeric: tabular-nums;
+    }
+    .codeinput {
+        background: #131614; border: 1px solid rgba(255,255,255,.14); color: #f1f3f0;
+        border-radius: 14px; padding: 13px; font-size: 26px; font-weight: 300;
+        letter-spacing: 10px; text-align: center; text-transform: uppercase; width: 100%;
+        outline: none; font-family: inherit;
+    }
+    .codeinput:focus { border-color: rgba(255,255,255,.3); }
+    .codeinput.ip { font-size: 19px; letter-spacing: 2px; text-transform: none; }
+    .hintline { font-size: 12px; color: #8a938c; text-align: center; min-height: 16px; }
+    .codeip {
+        font-size: 28px; font-weight: 200; letter-spacing: 4px;
+        color: #f1f3f0; font-variant-numeric: tabular-nums;
+    }
+    .lanlist { display: flex; flex-direction: column; gap: 8px; }
+    .lanhost {
+        display: flex; justify-content: space-between; align-items: center;
+        border: 1px solid rgba(255,255,255,.12); background: #131614; color: #f1f3f0;
+        border-radius: 14px; padding: 13px 16px; font-size: 15px; cursor: pointer; width: 100%;
+    }
+    .lanhost:active { background: #1b201d; }
+    .lanhost small { color: #5a615c; font-size: 11px; }
+
+    /* ═══════════ КАЗИНО-СТИЛЬ ═══════════ */
+    body::before {
+        background:
+            radial-gradient(42% 36% at 16% 20%, rgba(16, 84, 56, 0.62), transparent 72%),
+            radial-gradient(36% 42% at 84% 16%, rgba(84, 22, 46, 0.50), transparent 72%),
+            radial-gradient(46% 40% at 70% 84%, rgba(20, 46, 88, 0.45), transparent 72%),
+            radial-gradient(40% 36% at 24% 88%, rgba(110, 84, 20, 0.35), transparent 72%),
+            radial-gradient(30% 30% at 50% 50%, rgba(6, 40, 28, 0.45), transparent 75%);
+    }
+    .wordmark {
+        background: linear-gradient(180deg, #ffe9a8, #e2b53c 55%, #a8821d);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent; filter: drop-shadow(0 2px 8px rgba(226,181,60,.28));
+    }
+    .menu-foot { color: #8a7a45; }
+    .btn {
+        background: linear-gradient(180deg, #17402d, #0d241a);
+        border: 1px solid rgba(226,181,60,.55); color: #f4e9c8;
+        box-shadow: 0 3px 14px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+        font-weight: 600;
+    }
+    .btn:active { filter: brightness(1.25); }
+    .btn.primary {
+        background: linear-gradient(180deg, #f9e08a, #e2b53c 55%, #c19322);
+        color: #241a02; border: 1px solid #ffe9a8;
+        box-shadow: 0 4px 22px rgba(226,181,60,.38);
+        text-shadow: 0 1px 0 rgba(255,255,255,.35);
+    }
+    .btn.primary:active { background: linear-gradient(180deg, #ffe9a8, #e2b53c 55%, #c19322); }
+    .iconbtn { border-color: rgba(226,181,60,.5); color: #e2b53c; }
+    .seg { border-color: rgba(226,181,60,.5); }
+    .seg button { color: #cdb87a; }
+    .seg button.on { background: linear-gradient(180deg, #f9e08a, #d4a72c); color: #241a02; }
+    .bar-title { color: #cdb87a; text-shadow: 0 0 12px rgba(226,181,60,.25); }
+    .bar-note { color: #cdb87a; }
+    .card { background: linear-gradient(180deg, #10281e, #0a1a13); border-color: rgba(226,181,60,.35); }
+    .card:active { background: #143427; }
+    .coinsrow { border-color: rgba(226,181,60,.4); background: linear-gradient(180deg, #10281e, #0a1a13); }
+    .coinschip {
+        border: 1px solid rgba(226,181,60,.5); border-radius: 999px; padding: 3px 12px;
+        background: rgba(0,0,0,.28);
+    }
+    .shopitem { border-color: rgba(226,181,60,.3); background: linear-gradient(180deg, #10281e, #0a1a13); }
+    .shopitem.selected { border-color: rgba(226,181,60,.8); background: #123526; }
+    .modal { background: linear-gradient(180deg, #10281e, #0a1a13); border-color: rgba(226,181,60,.45); }
+    #adslot { border-top-color: rgba(226,181,60,.3); color: #6a5c2a; }
+    #toast { border-color: rgba(226,181,60,.45); }
+    #thinking { color: #6ed6a0; }
+
+    /* алмазы вместо монет */
+    .coinicon, .coinmini, .gemicon {
+        border-radius: 0; box-shadow: none;
+        clip-path: polygon(50% 0, 100% 36%, 50% 100%, 0 36%);
+        background: linear-gradient(180deg, #c9f4ff, #3cc0ea 55%, #1479a8) !important;
+    }
+    .coinicon { width: 24px; height: 24px; }
+    .coinmini { opacity: 1; }
+
+    /* анимация «разъезда» меню перед рулеткой */
+    #scr-menu .wordmark, #scr-menu .menu-bottom, #scr-menu .menu-top {
+        transition: transform .45s ease, opacity .45s ease;
+    }
+    #scr-menu.spread .wordmark { transform: scale(1.2); opacity: 0; }
+    #scr-menu.spread .menu-bottom { transform: translateY(70px); opacity: 0; }
+    #scr-menu.spread .menu-top { transform: translateY(-50px); opacity: 0; }
+
+    /* рулетка ботов */
+    #scr-roulette { align-items: center; justify-content: center; gap: 16px; }
+    .roul-top { text-align: center; }
+    .roul-title { font-size: 15px; letter-spacing: 3px; color: #f4e9c8; text-transform: uppercase; }
+    .roul-reward {
+        margin-top: 8px; font-size: 22px; font-weight: 700; color: #6ed6e0;
+        display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .roul-wrap { position: relative; width: 100%; max-width: 420px; }
+    #roulCanvas {
+        display: block; width: 100%; height: 128px;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+        mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
+    }
+    .avico {
+        width: 30px; height: 30px; border-radius: 50%;
+        border: 2px solid rgba(226,181,60,.7);
+        box-shadow: 0 2px 8px rgba(0,0,0,.5); background: #0d211a;
+        flex-shrink: 0;
+    }
+    .roul-pointer {
+        position: absolute; left: 50%; top: -4px; transform: translateX(-50%);
+        width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent;
+        border-top: 15px solid #e2b53c; filter: drop-shadow(0 2px 4px rgba(0,0,0,.65));
+    }
+    .roul-status { font-size: 13px; letter-spacing: 4px; color: #e2b53c; text-transform: uppercase; min-height: 18px; }
+
+    /* ── жирные шрифты ── */
+    .code, .modal .res { font-weight: 700; letter-spacing: 8px; }
+    .menu-foot { font-weight: 600; }
+
+    /* ── логотип на меню ── */
+    .logo-wrap { display: flex; justify-content: center; }
+    #logoImg { width: min(78vw, 330px); filter: drop-shadow(0 8px 22px rgba(0,0,0,.6)) drop-shadow(0 0 26px rgba(226,181,60,.12)); }
+
+    /* ── шапка матча ── */
+    .bar { min-height: 92px; padding: 8px 10px 4px; }
+    .avbig {
+        width: 84px; height: 84px; border-radius: 16px; object-fit: cover;
+        border: 3px solid #e2b53c;
+        box-shadow: 0 0 16px rgba(226,181,60,.35), 0 4px 10px rgba(0,0,0,.5);
+        background: #0d211a; flex-shrink: 0;
+    }
+    .sidecol { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+    .side.right .sidecol { align-items: flex-end; }
+    .nm { font-size: 11px; }
+    .scoreline { display: flex; align-items: center; gap: 6px; }
+    .puckico {
+        width: 20px; height: 20px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,.5);
+    }
+    .puckico.w { background: radial-gradient(circle at 35% 30%, #ffffff, #e8e2d4 60%, #b8ad96); border: 2px solid rgba(120,105,85,.7); }
+    .puckico.b { background: radial-gradient(circle at 35% 30%, #4a5058, #23262c 60%, #101216); border: 2px solid rgba(255,255,255,.4); }
+    .side .pts { font-size: 26px; }
+    .prize {
+        display: flex; flex-direction: column; align-items: center; gap: 3px;
+        padding: 8px 10px; border: 1px solid rgba(226,181,60,.5); border-radius: 14px;
+        background: rgba(0,0,0,.28);
+    }
+    .prize .gemicon { width: 20px; height: 20px; }
+    .prize b { color: #6ed6e0; font-size: 16px; }
+    .gemicon {
+        display: inline-block; width: 18px; height: 18px;
+        clip-path: polygon(50% 0, 100% 36%, 50% 100%, 0 36%);
+        background: linear-gradient(180deg, #c9f4ff, #3cc0ea 55%, #1479a8);
+    }
+    .gemicon.big { width: 64px; height: 64px; filter: drop-shadow(0 6px 18px rgba(60,192,234,.5)); }
+
+    /* ── профиль в магазине ── */
+    .profrow {
+        display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+        border: 1px solid rgba(226,181,60,.45); border-radius: 18px;
+        background: linear-gradient(180deg, #10281e, #0a1a13);
+    }
+    .avprof {
+        width: 64px; height: 64px; border-radius: 14px; object-fit: cover;
+        border: 3px solid #e2b53c; box-shadow: 0 0 14px rgba(226,181,60,.35); background: #0d211a;
+    }
+    .nameinput {
+        flex: 1; min-width: 0; background: rgba(0,0,0,.3); border: 1px solid rgba(226,181,60,.35);
+        border-radius: 12px; padding: 10px 12px; color: #f4e9c8; font-size: 15px; font-weight: 700;
+        outline: none; font-family: inherit;
+    }
+    .nameinput:focus { border-color: rgba(226,181,60,.7); }
+    .gems { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+        background: rgba(0,0,0,.3); border: 1px solid rgba(226,181,60,.4); }
+    .gems b { color: #6ed6e0; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+    /* расцветки стола крупнее */
+    .shopgrid.themes { grid-template-columns: 1fr; gap: 12px; }
+    .shopitem.themecard { padding: 8px; }
+    .previmg { width: 100%; display: block; border-radius: 8px; border: 1px solid rgba(0,0,0,.4); }
+
+    /* обучение крупнее */
+    #tut .modal { max-width: 360px; }
+    .tut-h { font-size: 22px; }
+    .tut-b { font-size: 16px; line-height: 1.6; }
+    .tut-num { font-size: 12px; }
+
+    /* красная кнопка */
+    .btn.danger { background: linear-gradient(180deg, #a83a30, #7d241c); border-color: rgba(255,160,140,.5); color: #ffe9dd; font-weight: 600; }
+
+    /* рулетка: разъезд после остановки */
+    #scr-roulette .roul-top, #scr-roulette .roul-wrap, #scr-roulette .roul-status {
+        transition: transform .45s ease, opacity .45s ease;
+    }
+    #scr-roulette.spread .roul-top { transform: translateY(-46px); opacity: 0; }
+    #scr-roulette.spread .roul-wrap { transform: scale(1.12); opacity: 0; }
+    #scr-roulette.spread .roul-status { transform: translateY(40px); opacity: 0; }
+
+    /* победа */
+    #winOv { background: rgba(3,9,6,.85); flex-direction: column; }
+    #confettiC { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .winbox { text-align: center; z-index: 2; }
+    .win-title {
+        font-size: 52px; font-weight: 900; letter-spacing: 4px;
+        background: linear-gradient(180deg, #ffe9a8, #e2b53c 55%, #a8821d);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        filter: drop-shadow(0 4px 14px rgba(226,181,60,.45));
+    }
+    .win-gem { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 26px 0; }
+    .win-gem b { font-size: 46px; color: #6ed6e0; font-variant-numeric: tabular-nums; text-shadow: 0 0 18px rgba(60,192,234,.5); }
+    .winbtns { opacity: 0; transform: translateY(14px); transition: all .4s ease; margin-top: 8px; }
+    .winbtns.show { opacity: 1; transform: none; }
+    .winbtns .btn { padding: 13px 22px; font-size: 15px; }
+
+    /* ── панель кнопок внизу экрана (над рекламой) ── */
+    #gameBtns {
+        flex-shrink: 0; display: flex; justify-content: center; gap: 22px;
+        padding: 4px 0 8px;
+    }
+    .gbtn {
+        width: 58px; height: 46px; border-radius: 14px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(180deg, #17402d, #0d241a);
+        border: 1px solid rgba(226,181,60,.55); color: #f4e9c8;
+        box-shadow: 0 3px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+    }
+    .gbtn:active { filter: brightness(1.3); }
+    #sliderRow { padding: 0 52px 2px; }
+    .bar { padding: 6px 12px 2px; }
+
+    /* звук: залитая нота в круге */
+    .iconbtn.music svg { width: 30px; height: 30px; }
+    .iconbtn.music {
+        background: radial-gradient(circle at 35% 30%, #ffe9a8, #e2b53c 60%, #b8860b);
+        border-color: #ffe9a8; color: #241a02;
+        box-shadow: 0 0 14px rgba(226,181,60,.35);
+    }
+    .iconbtn.music.off { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.25); color: #8a938c; box-shadow: none; }
+
+    /* ежедневная награда */
+    .modal.daily { text-align: center; }
+    .daily-t { font-size: 13px; letter-spacing: 3px; color: #e2b53c; font-weight: 800; margin-bottom: 18px; }
+    .daily-gem { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 22px; }
+    .daily-gem b { font-size: 44px; color: #6ed6e0; text-shadow: 0 0 18px rgba(60,192,234,.5); }
+    .modal.daily .btn { width: 100%; }
+
+    /* галочка применения имени */
+    .okbtn {
+        width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; cursor: pointer;
+        border: 1px solid rgba(110,214,160,.6); background: rgba(110,214,160,.14);
+        color: #6ed6a0; font-size: 19px; font-weight: 800;
+    }
+    .okbtn:active { background: rgba(110,214,160,.3); }
+
+    /* логотип: меньше на 10% + мягкая пульсация */
+    #logoImg {
+        width: min(59vw, 252px);
+        animation: logosway 3s ease-in-out infinite alternate;
+    }
+    @keyframes logosway {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.03); }
+    }
+
+    /* попап сложности */
+    .diffopts { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+    .diffopt {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 13px 16px; border-radius: 12px; cursor: pointer;
+        border: 1px solid rgba(226,181,60,.35); background: rgba(0,0,0,.25); color: #f4e9c8;
+        font-size: 15px; font-weight: 700; font-family: inherit;
+    }
+    .diffopt.on { border-color: #e2b53c; background: rgba(226,181,60,.14); }
+    .diffopt .drw { display: flex; align-items: center; gap: 5px; color: #6ed6e0; font-size: 13px; }
+    .diffopt .gemmini {
+        width: 11px; height: 11px; display: inline-block;
+        clip-path: polygon(50% 0, 100% 36%, 50% 100%, 0 36%);
+        background: linear-gradient(180deg, #c9f4ff, #3cc0ea 55%, #1479a8);
+    }
+
+    /* ползунок соперника над столом (зеркальный, неинтерактивный) */
+    #oppSliderRow {
+        flex-shrink: 0; padding: 0 8px 4px; --oppcol: 61,156,109; display: flex; justify-content: center;
+        opacity: .8; transition: opacity .25s;
+        pointer-events: none;
+    }
+    #oppSliderRow.off { opacity: .25; }
+    #oppSlider {
+        -webkit-appearance: none; appearance: none; width: 100%; height: 18px;
+        background: transparent; outline: none; transform: rotate(180deg);
+        pointer-events: none;
+    }
+    #oppSlider::-webkit-slider-runnable-track {
+        height: 3px; border-radius: 2px;
+        background: linear-gradient(90deg, rgba(var(--oppcol),.10), rgba(var(--oppcol),.45), rgba(var(--oppcol),.10));
+    }
+    #oppSlider::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+        border-radius: 50%; background: rgb(var(--oppcol)); margin-top: -7px;
+        border: 2px solid rgba(255,255,255,.45);
+    }
+    #oppSlider::-moz-range-track {
+        height: 3px; border-radius: 2px;
+        background: linear-gradient(90deg, rgba(var(--oppcol),.10), rgba(var(--oppcol),.45), rgba(var(--oppcol),.10));
+    }
+    #oppSlider::-moz-range-thumb {
+        width: 14px; height: 14px; border-radius: 50%; background: rgb(var(--oppcol));
+        border: 2px solid rgba(255,255,255,.45);
+    }
+    .xbtn {
+        position: absolute; top: 10px; right: 12px; width: 34px; height: 34px;
+        border-radius: 50%; border: 1px solid rgba(226,181,60,.45); background: none;
+        color: #e2b53c; font-size: 15px; cursor: pointer; font-weight: 700;
+    }
+    .xbtn:active { background: rgba(226,181,60,.15); }
+    .modal { position: relative; }
+</style>
+</head>
+<body>
+
+<!-- ГЛАВНОЕ МЕНЮ -->
+<div class="screen active" id="scr-menu">
+    <div class="menu-top">
+        <button class="flagbtn" id="btnLangRu" title="Русский">
+            <svg viewBox="0 0 28 20" preserveAspectRatio="none"><rect width="28" height="20" fill="#f0f0f0"/><rect y="6.7" width="28" height="6.6" fill="#0039a6"/><rect y="13.3" width="28" height="6.7" fill="#d52b1e"/></svg>
+        </button>
+        <button class="flagbtn" id="btnLangEn" title="English">
+            <svg viewBox="0 0 28 20" preserveAspectRatio="none"><rect width="28" height="20" fill="#012169"/><path d="M0,0 28,20 M28,0 0,20" stroke="#fff" stroke-width="4"/><path d="M0,0 28,20 M28,0 0,20" stroke="#C8102E" stroke-width="1.6"/><path d="M14,0 V20 M0,10 H28" stroke="#fff" stroke-width="6.5"/><path d="M14,0 V20 M0,10 H28" stroke="#C8102E" stroke-width="3.8"/></svg>
+        </button>
+        <div style="flex:1"></div>
+        <div class="coinschip"><span class="coinicon"></span><b id="coinsMenu">0</b></div>
+        <div style="flex:1"></div>
+        <button class="iconbtn music" id="btnSound" title="Звук">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M9 18.5a2.6 2.6 0 1 1-2.1-2.55V6.2a1 1 0 0 1 .78-.98l9-2a1 1 0 0 1 1.22.98v9.9a2.6 2.6 0 1 1-2.1-2.55V7.45L9 8.9z"/></svg>
+    </button>
+    </div>
+    <div class="logo-wrap"><img id="logoImg" src="img/logo.png" alt="Ring Carrom"></div>
+    <div class="menu-bottom">
+        <div class="menu-btns">
+            <button class="btn primary" id="btnBot"><span id="btnBotLabel">Играть с компьютером</span></button>
+            <button class="btn" id="btnOnline">Игра по сети</button>
+            <button class="btn" id="btnPvp">Два игрока</button>
+            <button class="btn" id="btnTraining">Тренировка</button>
+            <button class="btn" id="btnHow">Как играть</button>
+            <button class="btn" id="btnSettingsOpen">Магазин</button>
+        </div>
+    </div>
+    <div class="menu-foot" id="menuFoot">V1 · НАСТОЛЬНАЯ ИГРА</div>
+</div>
+
+<!-- ИГРА -->
+<div class="screen" id="scr-game">
+    <div class="bar">
+        <div class="bar-mid" id="barMid"></div>
+    </div>
+    <div id="oppSliderRow"><input type="range" id="oppSlider" min="169" max="551" step="1" value="360" disabled></div>
+    <div class="stage"><div class="boardwrap"><canvas id="c"></canvas>
+        <div id="sliderRow"><input type="range" id="ringSlider" min="169" max="551" step="1" value="360"></div>
+    </div></div>
+    <div id="gameBtns">
+        <button class="gbtn" id="btnBack" title="Выход">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h10"/></svg>
+        </button>
+        <button class="gbtn" id="btnReset" title="Заново">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" d="M20 12a8 8 0 1 1-2.4-5.7"/><path fill="currentColor" stroke="none" d="M21.5 2.5v7h-7z"/></svg>
+        </button>
+    </div>
+</div>
+
+
+<!-- РУЛЕТКА БОТОВ -->
+<div class="screen" id="scr-roulette">
+    <div class="roul-top">
+        <div class="roul-title" id="roulTitle"></div>
+        <div class="roul-reward"><i class="coinmini gemicon"></i><span id="roulReward"></span></div>
+    </div>
+    <div class="roul-wrap">
+        <canvas id="roulCanvas"></canvas>
+        <div class="roul-pointer"></div>
+    </div>
+    <div class="roul-status" id="roulStatus"></div>
+</div>
+
+<!-- НАСТРОЙКИ -->
+<div class="screen" id="scr-settings">
+    <div class="bar">
+        <button class="iconbtn" id="btnSettingsBack">‹</button>
+        <div class="bar-title" id="barTitleSettings">НАСТРОЙКИ</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <div class="profrow">
+            <img class="avprof" id="avProf" alt="">
+            <input id="nameInput" class="nameinput" maxlength="12" autocomplete="off" spellcheck="false">
+            <button class="okbtn" id="btnNameOk" title="OK">✔</button>
+            <div class="gems"><span class="gemicon"></span><b id="coinsVal">0</b></div>
+        </div>
+        <div class="sect" data-i18n="labelAvatars">АВАТАР</div>
+        <div class="shopgrid" id="avatarGrid"></div>
+        <div class="sect" data-i18n="labelTable">РАСЦВЕТКА СТОЛА</div>
+        <div class="shopgrid themes" id="themeGrid"></div>
+        <div class="sect" data-i18n="labelPucks">ШАЙБЫ</div>
+        <div class="shopgrid" id="puckGrid"></div>
+        <div class="sect" data-i18n="labelAvatars">АВАТАР</div>
+        <div class="shopgrid" id="avatarGrid"></div>
+    </div>
+</div>
+
+<!-- ТРЕНИРОВКА -->
+<div class="screen" id="scr-training">
+    <div class="bar">
+        <button class="iconbtn" id="btnTrainBack">‹</button>
+        <div class="bar-title" id="barTitleTraining">ТРЕНИРОВКА</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <button class="card" data-drill="free">
+            <div class="c-t" id="tFreeT">Свободная игра</div>
+            <div class="c-d" id="tFreeD">Стол без соперника. Оттачивайте удары и точки опоры кольца.</div>
+            <div class="c-s" id="stFree"></div>
+        </button>
+        <button class="card" data-drill="accuracy">
+            <div class="c-t" id="tAccT">Точность</div>
+            <div class="c-d" id="tAccD">10 ударов — забейте как можно больше камней.</div>
+            <div class="c-s" id="stAccuracy"></div>
+        </button>
+        <button class="card" data-drill="break">
+            <div class="c-t" id="tBrkT">Разбой</div>
+            <div class="c-d" id="tBrkD">3 попытки. Один удар по пирамиде — сколько рассеете в лузы?</div>
+            <div class="c-s" id="stBreak"></div>
+        </button>
+    </div>
+</div>
+
+<!-- ИГРА ПО СЕТИ -->
+<div class="screen" id="scr-online">
+    <div class="bar">
+        <button class="iconbtn" id="btnOnlineBack">‹</button>
+        <div class="bar-title" id="barTitleNet">ИГРА ПО СЕТИ</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <div class="seg" id="netSeg" style="align-self:center">
+            <button data-n="net" class="on" data-i18n="netSegNet">Интернет · код</button>
+            <button data-n="lan" data-i18n="netSegLan">Wi-Fi · локально</button>
+        </div>
+
+        <!-- ИНТЕРНЕТ -->
+        <div id="netWrap" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="onlinePick" class="ocol" style="display:flex; flex-direction:column; gap:12px;">
+                <button class="card" id="btnHost">
+                    <div class="c-t" id="netHostT">Создать игру</div>
+                    <div class="c-d" id="netHostD">Получите код и передайте сопернику.</div>
+                </button>
+                <button class="card" id="btnJoinPick">
+                    <div class="c-t" id="netJoinT">Присоединиться</div>
+                    <div class="c-d" id="netJoinD">Есть код от друга? Введите его здесь.</div>
+                </button>
+            </div>
+            <div id="onlineHost" class="ocol" style="display:none; flex-direction:column; align-items:center; gap:14px; padding: 26px 10px;">
+                <div class="bar-note" id="labelCode">КОД ИГРЫ</div>
+                <div id="hostCode" class="code">····</div>
+                <div id="hostStatus" class="hintline">Создаём игру…</div>
+                <button class="btn ghost" id="btnHostCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+            <div id="onlineJoin" class="ocol" style="display:none; flex-direction:column; gap:14px; padding: 26px 4px;">
+                <div class="bar-note" id="labelJoinCode">КОД СОПЕРНИКА</div>
+                <input id="joinCode" class="codeinput" maxlength="4" autocomplete="off" spellcheck="false" placeholder="AB12">
+                <div id="joinStatus" class="hintline">&nbsp;</div>
+                <button class="btn primary" id="btnJoinGo">Подключиться</button>
+                <button class="btn ghost" id="btnJoinCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+        </div>
+
+        <!-- WI-FI (ЛОКАЛЬНО) -->
+        <div id="lanWrap" style="display:none; flex-direction:column; gap:12px;">
+            <div id="lanPick" class="ocol" style="display:flex; flex-direction:column; gap:12px;">
+                <button class="card" id="btnLanHost">
+                    <div class="c-t" id="lanHostT">Создать игру</div>
+                    <div class="c-d" id="lanHostD">Телефон покажет свой адрес в Wi-Fi сети. Интернет не нужен.</div>
+                </button>
+                <button class="card" id="btnLanJoinPick">
+                    <div class="c-t" id="lanJoinT">Присоединиться</div>
+                    <div class="c-d" id="lanJoinD">Найдите хост в сети или введите его адрес.</div>
+                </button>
+            </div>
+            <div id="lanHost" class="ocol" style="display:none; flex-direction:column; align-items:center; gap:14px; padding: 26px 10px;">
+                <div class="bar-note" id="labelLanIp">АДРЕС В СЕТИ WI-FI</div>
+                <div id="lanIp" class="codeip">··· ··· ··· ···</div>
+                <div id="lanHostStatus" class="hintline">Поднимаем игру…</div>
+                <button class="btn ghost" id="btnLanHostCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+            <div id="lanJoin" class="ocol" style="display:none; flex-direction:column; gap:14px; padding: 26px 4px;">
+                <div class="bar-note" id="labelLanHosts">ХОСТЫ В СЕТИ</div>
+                <div id="lanList" class="lanlist"><div class="hintline">Ищем хосты…</div></div>
+                <div class="bar-note" style="margin-top:6px" id="labelLanManual">ИЛИ АДРЕС ВРУЧНУЮ</div>
+                <input id="lanAddr" class="codeinput ip" maxlength="15" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.5">
+                <div id="lanJoinStatus" class="hintline">&nbsp;</div>
+                <button class="btn primary" id="btnLanJoinGo">Подключиться</button>
+                <button class="btn ghost" id="btnLanJoinCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- РЕЗУЛЬТАТ ПАРТИИ -->
+<div class="overlay" id="over">
+    <div class="modal">
+        <h2 id="overH">Партия окончена</h2>
+        <div class="res" id="overRes"></div>
+        <div class="mrow">
+            <button class="btn ghost" id="btnOverMenu">В меню</button>
+            <button class="btn primary" id="btnAgain">Ещё раз</button>
+        </div>
+    </div>
+</div>
+
+<!-- ОБУЧЕНИЕ -->
+<div class="overlay" id="tut">
+    <div class="modal">
+        <div class="tut-num" id="tutNum"></div>
+        <div class="tut-h" id="tutH"></div>
+        <div class="tut-b" id="tutB"></div>
+        <div class="tut-nav">
+            <button class="btn ghost" id="tutClose">Закрыть</button>
+            <button class="btn primary" id="tutNext">Далее</button>
+        </div>
+        <div class="tut-dots" id="tutDots"></div>
+    </div>
+</div>
+
+<!-- ЕЖЕДНЕВНАЯ НАГРАДА -->
+<div class="overlay" id="dailyOv">
+    <div class="modal daily">
+        <div class="daily-t" data-i18n="dailyTitle">ЕЖЕДНЕВНАЯ НАГРАДА</div>
+        <div class="daily-gem"><span class="gemicon big"></span><b>+10</b></div>
+        <button class="btn primary" id="btnDailyGet" data-i18n="dailyGet">Получить</button>
+    </div>
+</div>
+
+<!-- ВЫБОР СЛОЖНОСТИ -->
+<div class="overlay" id="diffOv">
+    <div class="modal">
+        <button class="xbtn" id="diffClose" data-i18n="xClose">✕</button>
+        <div class="daily-t" data-i18n="chooseDiff">ВЫБЕРИТЕ СЛОЖНОСТЬ</div>
+        <div class="diffopts">
+            <button class="diffopt" data-d="0"><span class="dnm" data-i18n="diff0">Лёгкий</span><span class="drw"><i class="gemmini"></i>+10</span></button>
+            <button class="diffopt on" data-d="1"><span class="dnm" data-i18n="diff1">Средний</span><span class="drw"><i class="gemmini"></i>+20</span></button>
+            <button class="diffopt" data-d="2"><span class="dnm" data-i18n="diff2">Сложный</span><span class="drw"><i class="gemmini"></i>+30</span></button>
+        </div>
+        <button class="btn primary" id="btnDiffStart" data-i18n="btnStart" style="width:100%;margin-top:16px">Начать</button>
+    </div>
+</div>
+
+<!-- ПОБЕДА -->
+<div class="overlay win" id="winOv">
+    <canvas id="confettiC"></canvas>
+    <div class="winbox">
+        <div class="win-title" id="winTitle">ПОБЕДА!</div>
+        <div class="win-gem"><span class="gemicon big"></span><b id="winAmount">+0</b></div>
+        <div class="mrow winbtns"><button class="btn ghost" id="btnWinExit" data-i18n="btnExit">Выйти</button><button class="btn primary" id="btnWinAgain" data-i18n="btnAgain">Ещё раз</button></div>
+    </div>
+</div>
+
+<!-- ПОДТВЕРЖДЕНИЕ -->
+<div class="overlay" id="confirmOv">
+    <div class="modal">
+        <h2 id="confTitle">Выйти из игры?</h2>
+        <div class="mrow" style="margin-top:18px">
+            <button class="btn ghost" id="confStay" data-i18n="btnStay">Остаться</button>
+            <button class="btn danger" id="confGo" data-i18n="btnExit">Выйти</button>
+        </div>
+    </div>
+</div>
+
+<div id="thinking">бот думает</div>
+<div id="toast"></div>
+<div id="hint"></div>
+<div id="adslot" data-i18n="adslot">РЕКЛАМА</div>
+<div id="testlog"></div>
+
+<script src="js/vendor/peerjs.min.js?v=60"
+        onerror="window.__peerFailed = true"></script>
+<script src="js/noble-src.js?v=60"></script>
+<script src="js/physics.js?v=60"></script>
+<script src="js/bot.js?v=60"></script>
+<script src="js/net.js?v=60"></script>
+<script src="js/lan.js?v=60"></script>
+<script src="js/i18n.js?v=60"></script>
+<script src="js/render.js?v=62"></script>
+<script src="js/tests.js?v=60"></script>
+<script src="js/main.js?v=60"></script>
+</body>
+</html>

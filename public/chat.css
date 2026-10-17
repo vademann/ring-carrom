@@ -1,0 +1,24 @@
+#netChat[hidden], #chatPanel[hidden] { display: none; }
+#netChat { position: fixed; right: 12px; bottom: calc(var(--ad-height) + 12px + env(safe-area-inset-bottom, 0px)); z-index: 12; font-size: 14px; }
+#netChat button { border: 1px solid #4c767c; border-radius: 12px; padding: 10px 14px; background: #193743; color: #fff; font: inherit; cursor: pointer; min-height: 44px; }
+#chatToggle { box-shadow: 0 4px 16px #0005; }
+#chatPanel { position: absolute; bottom: 54px; right: 0; width: min(360px, calc(100vw - 24px)); height: min(380px, 55dvh); display: flex; flex-direction: column; background: #102b35; color: #f1f7f6; border: 1px solid #4c767c; border-radius: 16px; box-shadow: 0 12px 32px #0008; overflow: hidden; }
+#chatPanel header { display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid #4c767c; }
+#chatClose { font-size: 22px !important; background: transparent !important; border: 0 !important; }
+#chatMessages { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px; min-height: 50px; }
+.chat-message { margin: 0 26px 10px 0; padding: 8px 10px; border-radius: 10px; background: #21424d; overflow-wrap: anywhere; white-space: pre-wrap; }
+.chat-message.own { margin: 0 0 10px 26px; background: #27574f; }
+.chat-message b { display: block; font-size: 11px; color: #a7d7ce; margin-bottom: 4px; }
+#chatForm { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #4c767c; }
+#quickReactions {display:flex;gap:5px;flex-wrap:wrap;padding:8px;border-bottom:1px solid #4c767c}
+#quickReactions button {font-size:12px;padding:6px 9px;min-height:34px}
+#chatInput { min-width: 0; flex: 1; border: 1px solid #4c767c; border-radius: 10px; padding: 10px; font: 16px sans-serif; background: #091d26; color: #fff; }
+#chatInput:focus-visible, #netChat button:focus-visible { outline: 2px solid #8fe0cf; outline-offset: -2px; }
+#chatBubbles { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
+#chatBubbles[hidden], .avatar-chat-stack[hidden] { display:none; }
+.avatar-chat-stack { position:absolute; width:min(210px,calc((100vw - 40px)/2)); display:flex; flex-direction:column; gap:5px; }
+.avatar-chat-bubble { padding:7px 10px; border:1px solid #6ba59b; border-radius:11px; background:#193c43f5; color:#f3fffa; font:13px/1.4 sans-serif; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; box-shadow:0 4px 14px #0005; animation:chatFade 2.5s both; }
+.avatar-chat-stack:first-child .avatar-chat-bubble { background:#27574ff5; }
+@keyframes chatFade { 0% {opacity:0;transform:translateY(5px)} 10%,90% {opacity:1;transform:translateY(0)} 100% {opacity:0;transform:translateY(-3px)} }
+@media(prefers-reduced-motion:reduce) { .avatar-chat-bubble {animation-name:chatFadeReduced} }
+@keyframes chatFadeReduced { 0%,100% {opacity:0} 10%,90% {opacity:1} }

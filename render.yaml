@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ring-carrom-relay
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -u server.py
+    healthCheckPath: /health
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.8
+      - key: HOST
+        value: 0.0.0.0

@@ -1,0 +1,52 @@
+/* Friends use the existing club palette and responsive screen structure. */
+.friends-menu-btn { grid-column: 1 / -1; background: linear-gradient(#a943cf, #662296); }
+.friends-badge { display: inline-grid; place-items: center; min-width: 23px; padding: 2px 6px; border-radius: 12px; background: #ffcf72; color: #401032; font-size: 12px; }
+.friends-badge[hidden], #friendInviteBanner[hidden] { display: none; }
+#scr-friends { padding: 12px 16px; gap: 12px; touch-action: pan-y; }
+.friend-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
+.friend-bar h2 { font-size: 20px; }
+.friend-self { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #480d38e0; border: 1px solid #edbc6b; border-radius: 14px; gap: 8px; }
+.friend-self b { overflow-wrap: anywhere; }
+.friend-tabs { display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; padding-bottom: 4px; }
+.friend-tabs button, .friend-action { min-height: 40px; padding: 8px 10px; border: 1px solid #cf8d4d; border-radius: 10px; color: #fff9ed; background: #552057; font-weight: 700; font-size: 12px; }
+.friend-tabs button { flex-shrink: 0; }
+.friend-tabs button[aria-selected="true"] { color: #401032; background: #ffda70; }
+.friend-action.primary { background: #087d91; }
+.friend-action.danger { color: #ffbeca; }
+.friend-action:disabled { opacity: .45; }
+.friend-muted { color: #ead9ef; font-size: 12px; line-height: 1.5; }
+#friendsStatus { min-height: 19px; }
+#friendsContent { overflow-y: auto; min-height: 0; padding: 1px 2px 20px; }
+.friend-list { display: grid; gap: 10px; }
+.friend-card { padding: 12px; border: 1px solid #cf8d4d; border-radius: 14px; background: #480d38e8; }
+.friend-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.friend-person img { width: 48px; height: 48px; border: 1px solid #ffda70; border-radius: 12px; object-fit: cover; }
+.friend-person div { min-width: 0; flex: 1; }
+.friend-person b, .friend-person small { display: block; overflow-wrap: anywhere; }
+.friend-person small { color: #ead9ef; font-size: 12px; margin-top: 3px; }
+.friend-online { color: #63ffdf !important; }
+.friend-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.friend-search-row, .friend-login-row, .friend-message-form { display: flex; gap: 8px; margin: 8px 0; }
+.friend-message-form[hidden] { display: none; }
+.friend-search-row input, .friend-login-row input, .friend-message-form input { flex: 1; min-width: 0; background: #2b103b; color: #fff; border: 1px solid #cf8d4d; border-radius: 10px; padding: 10px; font-size: 14px; user-select: text; touch-action: auto; }
+.friend-login-row .okbtn { width: auto; padding: 8px; font-size: 12px; }
+.friend-account { padding-block: 12px; border-bottom: 1px solid #cf8d4d; text-align: left; }
+.audio-settings .friend-account label { margin: 10px 0; justify-content: flex-start; }
+.audio-settings .friend-account input:not([type="checkbox"]) { height: 40px; }
+.friend-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 0; }
+.friend-account-actions label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.audio-settings { max-height: calc(100dvh - 40px); overflow-y: auto; touch-action: pan-y; }
+#friendDnd { width: 18px; height: 18px; accent-color: #63ffdf; }
+.friend-empty { text-align: center; padding: 28px 12px; color: #ead9ef; font-size: 14px; line-height: 1.6; }
+#friendInviteBanner { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px); left: 50%; transform: translateX(-50%); width: min(94vw, 440px); z-index: 36; padding: 14px; border: 2px solid #ffda70; border-radius: 16px; background: #401032fa; box-shadow: 0 8px 30px #180218a0; }
+#friendInviteBanner p { font-size: 14px; line-height: 1.4; }
+.friend-dialog { display: flex; flex-direction: column; gap: 12px; width: min(94vw, 460px); max-height: 80dvh; text-align: left; }
+.friend-dialog h2 { font-size: 19px; margin-right: 28px; overflow-wrap: anywhere; }
+.friend-dialog-body { overflow-y: auto; min-height: 70px; touch-action: pan-y; user-select: text; }
+.friend-message { width: fit-content; max-width: 90%; padding: 8px 11px; margin: 7px 0; border-radius: 12px; background: #713080; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 14px; }
+.friend-message.own { margin-left: auto; background: #086a77; }
+.friend-message time { display: block; color: #ead9ef; margin-top: 4px; font-size: 10px; }
+.friend-filter { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; padding: 8px 0; }
+.friend-filter label { display: flex; gap: 5px; align-items: center; }
+.friend-section-title { margin: 12px 0 8px; font-size: 14px; color: #ffda70; }
+@media (max-width: 360px) { #scr-friends { padding-inline: 10px; } .friend-card { padding: 10px; } .friend-action { padding-inline: 8px; } }

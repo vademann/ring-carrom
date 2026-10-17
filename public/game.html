@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Ring Carrom</title>
+<link rel="stylesheet" href="ui.css?v=99">
+<link rel="stylesheet" href="chat.css?v=4">
+<link rel="stylesheet" href="colorful.css?v=7">
+<link rel="stylesheet" href="friends.css?v=1">
+</head>
+<body>
+
+<!-- ГЛАВНОЕ МЕНЮ -->
+<div class="screen active" id="scr-menu">
+    <div class="menu-top">
+        <div class="home-profile">
+            <img id="homeAvatar" class="home-avatar" alt="">
+            <div class="home-profile-info"><b id="homeName" class="visually-hidden"></b>
+                <div class="home-progress">
+                    <div class="home-level-badge"><span id="homeLevel" class="visually-hidden"></span><b id="homeLevelValue" aria-hidden="true"></b></div>
+                    <div id="homeXpBar" class="home-xp" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i id="homeXpFill"></i><span id="homeXpText"></span></div>
+                </div>
+            </div>
+        </div>
+        <button class="iconbtn" id="btnSettingsGear" title="Настройки"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M20.00,12.00 L21.91,13.31 L21.66,14.59 L21.24,15.83 L18.93,16.00 L18.35,16.87 L17.66,17.66 L18.09,19.93 L17.00,20.66 L15.83,21.24 L14.07,19.73 L13.04,19.93 L12.00,20.00 L10.69,21.91 L9.41,21.66 L8.17,21.24 L8.00,18.93 L7.13,18.35 L6.34,17.66 L4.07,18.09 L3.34,17.00 L2.76,15.83 L4.27,14.07 L4.07,13.04 L4.00,12.00 L2.09,10.69 L2.34,9.41 L2.76,8.17 L5.07,8.00 L5.65,7.13 L6.34,6.34 L5.91,4.07 L7.00,3.34 L8.17,2.76 L9.93,4.27 L10.96,4.07 L12.00,4.00 L13.31,2.09 L14.59,2.34 L15.83,2.76 L16.00,5.07 L16.87,5.65 L17.66,6.34 L19.93,5.91 L20.66,7.00 L21.24,8.17 L19.73,9.93 L19.93,10.96 Z"/><circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <div class="coinschip"><span class="coinicon"></span><b id="coinsMenu">0</b></div>
+    </div>
+    <div class="logo-wrap"><img id="logoImg" src="img/logo.png" alt="Ring Carrom"></div>
+    <div class="menu-bottom">
+        <div class="menu-btns">
+            <button class="btn primary" id="btnBot"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v12H5z M9 12h.01 M15 12h.01 M9 16h6 M12 8V4 M10 4h4 M2 12v4 M22 12v4"/></svg><span id="btnBotLabel">Играть с компьютером</span></button>
+            <button class="btn" id="btnOnline"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9a12 12 0 0 1 16 0 M7 12a8 8 0 0 1 10 0 M10 15a3 3 0 0 1 4 0 M12 19h.01"/></svg><span id="btnOnlineLabel">Игра по сети</span></button>
+            <button class="btn" id="btnPvp"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7a3 3 0 1 0-6 0 3 3 0 0 0 6 0 M21 7a3 3 0 1 0-6 0 3 3 0 0 0 6 0 M1 20v-3a5 5 0 0 1 10 0v3 M13 20v-3a5 5 0 0 1 10 0v3"/></svg><span id="btnPvpLabel">Два игрока</span></button>
+            <button class="btn" id="btnTraining"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9 M17 12a5 5 0 1 1-5-5 M12 12l9-9 M16 3h5v5"/></svg><span id="btnTrainingLabel">Тренировка</span></button>
+            <button class="btn" id="btnHow"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 3 M12 17h.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0"/></svg><span id="btnHowLabel">Как играть</span></button>
+            <button class="btn" id="btnSettingsOpen"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18l-2 11H5z M7 9l5-7 5 7 M9 13v3 M15 13v3"/></svg><span id="btnSettingsOpenLabel">Магазин</span></button>
+            <div class="progress-buttons"><button class="btn" id="btnCareer"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18h18 M8 17v-5h3v5 M14 17V8h3v9 M20 17V4h2v13"/></svg><span id="btnCareerLabel">Рейтинг</span></button><button class="btn" id="btnQuests"><svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v17h16V4h-4 M8 2h8v5H8z M8 13l3 3 5-6"/></svg><span id="btnQuestsLabel">Задания</span></button></div>
+            <button class="btn friends-menu-btn" id="btnFriends"><span id="friendsMenuLabel">Друзья</span><span id="friendsBadge" class="friends-badge" hidden></span></button>
+        </div>
+    </div>
+</div>
+
+<!-- ИГРА -->
+<div class="screen" id="scr-game">
+    <div class="bar">
+        <div class="bar-mid" id="barMid"></div>
+    </div>
+    <div class="stage"><div class="boardwrap">
+        <div id="oppSliderRow"><input type="range" id="oppSlider" min="169" max="551" step="1" value="360" disabled></div>
+        <canvas id="c"></canvas>
+        <div id="sliderRow"><input type="range" id="ringSlider" min="169" max="551" step="1" value="360"></div>
+    </div></div>
+    <div id="gameBtns">
+        <button class="gbtn" id="btnBack" title="Выход">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h10"/></svg>
+        </button>
+        <button class="gbtn" id="btnReset" title="Заново">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" d="M20 12a8 8 0 1 1-2.4-5.7"/><path fill="currentColor" stroke="none" d="M21.5 2.5v7h-7z"/></svg>
+        </button>
+    </div>
+</div>
+
+
+<!-- РУЛЕТКА БОТОВ -->
+<div class="screen" id="scr-roulette">
+    <div class="roul-top">
+        <div class="roul-title" id="roulTitle"></div>
+        <div class="roul-reward"><i class="coinmini gemicon"></i><span id="roulReward"></span></div>
+    </div>
+    <div class="roul-wrap">
+        <canvas id="roulCanvas"></canvas>
+        <div class="roul-pointer"></div>
+    </div>
+    <div class="roul-status" id="roulStatus"></div>
+</div>
+
+<!-- НАСТРОЙКИ -->
+<div class="screen" id="scr-settings">
+    <div class="bar">
+        <button class="iconbtn" id="btnSettingsBack">‹</button>
+        <div class="bar-title" id="barTitleSettings">НАСТРОЙКИ</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <div class="profrow">
+            <img class="avprof" id="avProf" alt="">
+            <input id="nameInput" class="nameinput" maxlength="12" autocomplete="off" spellcheck="false">
+            <button class="okbtn" id="btnNameOk" title="OK">✔</button>
+            <div class="gems"><span class="gemicon"></span><b id="coinsVal">0</b></div>
+        </div>
+        <section class="login-calendar" aria-labelledby="loginTitle"><h3 id="loginTitle" data-i18n="loginTitle"></h3><p data-i18n="loginHelp"></p><div class="login-days" id="loginDays"></div><button class="btn primary" id="btnLoginClaim"></button></section>
+        <div class="sect" data-i18n="labelAvatars">АВАТАР</div>
+        <div class="shopgrid" id="avatarGrid"></div>
+        <div class="sect" data-i18n="labelTable">РАСЦВЕТКА СТОЛА</div>
+        <div class="shopgrid themes" id="themeGrid"></div>
+        <div class="sect" data-i18n="labelPucks">ШАЙБЫ</div>
+        <div class="shopgrid" id="puckGrid"></div>
+    </div>
+</div>
+
+<!-- ТРЕНИРОВКА -->
+<div class="screen" id="scr-training">
+    <div class="bar">
+        <button class="iconbtn" id="btnTrainBack">‹</button>
+        <div class="bar-title" id="barTitleTraining">ТРЕНИРОВКА</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <button class="card" data-drill="free">
+            <div class="c-t" id="tFreeT">Свободная игра</div>
+            <div class="c-d" id="tFreeD">Стол без соперника. Оттачивайте удары и точки опоры кольца.</div>
+            <div class="c-s" id="stFree"></div>
+        </button>
+        <button class="card" data-drill="accuracy">
+            <div class="c-t" id="tAccT">Точность</div>
+            <div class="c-d" id="tAccD">10 ударов — забейте как можно больше камней.</div>
+            <div class="c-s" id="stAccuracy"></div>
+        </button>
+        <button class="card" data-drill="break">
+            <div class="c-t" id="tBrkT">Разбой</div>
+            <div class="c-d" id="tBrkD">3 попытки. Один удар по пирамиде — сколько рассеете в лузы?</div>
+            <div class="c-s" id="stBreak"></div>
+        </button>
+    </div>
+</div>
+
+<!-- ИГРА ПО СЕТИ -->
+<div class="screen" id="scr-online">
+    <div class="bar">
+        <button class="iconbtn" id="btnOnlineBack">‹</button>
+        <div class="bar-title" id="barTitleNet">ИГРА ПО СЕТИ</div>
+        <div style="width:38px"></div>
+    </div>
+    <div class="cards">
+        <div class="seg" id="netSeg" style="align-self:center">
+            <button data-n="net" class="on" data-i18n="netSegNet">Интернет · код</button>
+            <button data-n="lan" data-i18n="netSegLan">Wi-Fi · локально</button>
+        </div>
+
+        <!-- ИНТЕРНЕТ -->
+        <div id="netWrap" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="onlinePick" class="ocol" style="display:flex; flex-direction:column; gap:12px;">
+                <button class="card" id="btnQuick"><div class="c-t" data-i18n="quickFind">Найти соперника</div><div class="c-d" data-i18n="quickHelp">Автоматический подбор игрока без кода.</div></button>
+                <button class="card" id="btnHost">
+                    <div class="c-t" id="netHostT">Создать игру</div>
+                    <div class="c-d" id="netHostD">Получите код и передайте сопернику.</div>
+                </button>
+                <button class="card" id="btnJoinPick">
+                    <div class="c-t" id="netJoinT">Присоединиться</div>
+                    <div class="c-d" id="netJoinD">Есть код от друга? Введите его здесь.</div>
+                </button>
+            </div>
+            <div id="onlineHost" class="ocol" style="display:none; flex-direction:column; align-items:center; gap:14px; padding: 26px 10px;">
+                <div class="bar-note" id="labelCode">КОД ИГРЫ</div>
+                <div id="hostCode" class="code">····</div>
+                <div id="hostStatus" class="hintline">Создаём игру…</div>
+                <button class="btn ghost" id="btnHostCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+            <div id="onlineQuick" class="ocol" style="display:none;flex-direction:column;gap:16px;align-items:center;padding:26px 10px"><div class="c-t" data-i18n="quickSearching">Поиск соперника…</div><div class="hintline" id="quickStatus">Ожидаем другого игрока</div><button class="btn ghost" id="btnQuickCancel" data-i18n="btnCancel">Отмена</button></div>
+            <div id="onlineJoin" class="ocol" style="display:none; flex-direction:column; gap:14px; padding: 26px 4px;">
+                <div class="bar-note" id="labelJoinCode">КОД СОПЕРНИКА</div>
+                <input id="joinCode" class="codeinput" maxlength="4" autocomplete="off" spellcheck="false" placeholder="AB12">
+                <div id="joinStatus" class="hintline">&nbsp;</div>
+                <button class="btn primary" id="btnJoinGo">Подключиться</button>
+                <button class="btn ghost" id="btnJoinCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+        </div>
+
+        <!-- WI-FI (ЛОКАЛЬНО) -->
+        <div id="lanWrap" style="display:none; flex-direction:column; gap:12px;">
+            <div id="lanPick" class="ocol" style="display:flex; flex-direction:column; gap:12px;">
+                <button class="card" id="btnLanHost">
+                    <div class="c-t" id="lanHostT">Создать игру</div>
+                    <div class="c-d" id="lanHostD">Телефон покажет свой адрес в Wi-Fi сети. Интернет не нужен.</div>
+                </button>
+                <button class="card" id="btnLanJoinPick">
+                    <div class="c-t" id="lanJoinT">Присоединиться</div>
+                    <div class="c-d" id="lanJoinD">Найдите хост в сети или введите его адрес.</div>
+                </button>
+            </div>
+            <div id="lanHost" class="ocol" style="display:none; flex-direction:column; align-items:center; gap:14px; padding: 26px 10px;">
+                <div class="bar-note" id="labelLanIp">АДРЕС В СЕТИ WI-FI</div>
+                <div id="lanIp" class="codeip">··· ··· ··· ···</div>
+                <div id="lanHostStatus" class="hintline">Поднимаем игру…</div>
+                <button class="btn ghost" id="btnLanHostCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+            <div id="lanJoin" class="ocol" style="display:none; flex-direction:column; gap:14px; padding: 26px 4px;">
+                <div class="bar-note" id="labelLanHosts">ХОСТЫ В СЕТИ</div>
+                <div id="lanList" class="lanlist"><div class="hintline">Ищем хосты…</div></div>
+                <div class="bar-note" style="margin-top:6px" id="labelLanManual">ИЛИ АДРЕС ВРУЧНУЮ</div>
+                <input id="lanAddr" class="codeinput ip" maxlength="15" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.1.5">
+                <div id="lanJoinStatus" class="hintline">&nbsp;</div>
+                <button class="btn primary" id="btnLanJoinGo">Подключиться</button>
+                <button class="btn ghost" id="btnLanJoinCancel" data-i18n="btnCancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- РЕЗУЛЬТАТ ПАРТИИ -->
+<div class="overlay" id="over">
+    <div class="modal">
+        <h2 id="overH">Партия окончена</h2>
+        <div class="res" id="overRes"></div>
+        <div class="mrow">
+            <button class="btn ghost" id="btnOverMenu">В меню</button>
+            <button class="btn primary" id="btnAgain">Ещё раз</button>
+        </div>
+    </div>
+</div>
+
+<!-- ОБУЧЕНИЕ -->
+<div class="overlay" id="tut">
+    <div class="modal">
+        <div class="tut-num" id="tutNum"></div>
+        <div class="tut-h" id="tutH"></div>
+        <canvas id="tutDemo" width="360" height="150" aria-hidden="true"></canvas>
+        <div class="tut-b" id="tutB"></div>
+        <div class="tut-nav">
+            <button class="btn ghost" id="tutClose">Закрыть</button>
+            <button class="btn primary" id="tutNext">Далее</button>
+        </div>
+        <div class="tut-dots" id="tutDots"></div>
+    </div>
+</div>
+
+<!-- ЕЖЕДНЕВНАЯ НАГРАДА -->
+<div class="overlay" id="dailyOv">
+    <div class="modal daily">
+        <div class="daily-t" data-i18n="dailyTitle">ЕЖЕДНЕВНАЯ НАГРАДА</div>
+        <div class="daily-gem"><span class="gemicon big"></span><b id="dailyAmount">+10</b></div>
+        <button class="btn primary" id="btnDailyGet" data-i18n="dailyGet">Получить</button>
+    </div>
+</div>
+
+<!-- ВЫБОР СЛОЖНОСТИ -->
+<div class="overlay" id="diffOv">
+    <div class="modal">
+        <button class="xbtn" id="diffClose">✕</button>
+        <div class="daily-t" data-i18n="chooseDiff">ВЫБЕРИТЕ СЛОЖНОСТЬ</div>
+        <div class="diffopts">
+            <button class="diffopt" data-d="0"><span class="dnm" data-i18n="diff0">Лёгкий</span><span class="drw"><i class="gemmini"></i>+10</span></button>
+            <button class="diffopt on" data-d="1"><span class="dnm" data-i18n="diff1">Средний</span><span class="drw"><i class="gemmini"></i>+20</span></button>
+            <button class="diffopt" data-d="2"><span class="dnm" data-i18n="diff2">Сложный</span><span class="drw"><i class="gemmini"></i>+30</span></button>
+        </div>
+        <button class="btn primary" id="btnDiffStart" data-i18n="btnStart" style="width:100%;margin-top:16px">Начать</button>
+    </div>
+</div>
+
+<!-- ПОБЕДА -->
+<div class="overlay win" id="winOv">
+    <canvas id="confettiC"></canvas>
+    <div class="winbox">
+        <div class="win-title" id="winTitle">ПОБЕДА!</div><div id="winXp" class="win-xp"></div>
+        <div class="win-gem"><span class="gemicon big"></span><b id="winAmount">+0</b></div>
+        <div class="mrow winbtns"><button class="btn ghost" id="btnWinExit" data-i18n="btnExit">Выйти</button><button class="btn primary" id="btnWinAgain" data-i18n="btnAgain">Ещё раз</button></div>
+    </div>
+</div>
+
+<!-- ПОДТВЕРЖДЕНИЕ -->
+<div class="overlay" id="confirmOv">
+    <div class="modal">
+        <h2 id="confTitle">Выйти из игры?</h2>
+        <div class="mrow" style="margin-top:18px">
+            <button class="btn ghost" id="confStay" data-i18n="btnStay">Остаться</button>
+            <button class="btn danger" id="confGo" data-i18n="btnExit">Выйти</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="soundOv">
+    <div class="modal audio-settings" role="dialog" aria-modal="true" aria-labelledby="soundTitle">
+        <button class="xbtn" id="soundClose" aria-label="Закрыть">✕</button>
+        <h2 id="soundTitle">Настройки</h2>
+        <section id="friendAccount" class="friend-account" aria-labelledby="friendLoginLabel">
+            <label id="friendLoginLabel" for="friendLogin">Логин для поиска друзей</label>
+            <div class="friend-login-row"><input id="friendLogin" maxlength="20" autocapitalize="none" autocomplete="off" spellcheck="false"><button id="friendLoginSave" class="okbtn" type="button">Сохранить</button></div>
+            <p id="friendLoginHelp" class="friend-muted"></p>
+            <p id="friendLoginStatus" role="status" class="friend-muted"></p>
+            <div class="friend-account-actions"><button id="friendLoginCopy" class="friend-action" type="button">Копировать логин</button><label><input type="checkbox" id="friendDnd"><span id="friendDndLabel">Не беспокоить</span></label></div>
+            <p id="friendGuestHelp" class="friend-muted"></p>
+        </section>
+        <h3 class="settings-label" data-i18n="languageLabel">Язык</h3>
+        <div class="settings-languages">        <button class="flagbtn" id="btnLangRu" title="Русский" aria-label="Русский">
+            <svg viewBox="0 0 28 20" preserveAspectRatio="none"><rect width="28" height="20" fill="#f0f0f0"/><rect y="6.7" width="28" height="6.6" fill="#0039a6"/><rect y="13.3" width="28" height="6.7" fill="#d52b1e"/></svg>
+        </button>
+        <button class="flagbtn" id="btnLangEn" title="English" aria-label="English">
+            <svg viewBox="0 0 28 20" preserveAspectRatio="none"><rect width="28" height="20" fill="#012169"/><path d="M0,0 28,20 M28,0 0,20" stroke="#fff" stroke-width="4"/><path d="M0,0 28,20 M28,0 0,20" stroke="#C8102E" stroke-width="1.6"/><path d="M14,0 V20 M0,10 H28" stroke="#fff" stroke-width="6.5"/><path d="M14,0 V20 M0,10 H28" stroke="#C8102E" stroke-width="3.8"/></svg>
+        </button>
+<span data-i18n="languageHelp">Русский / English</span></div>
+        <h3 class="settings-label" data-i18n="audioLabel">Громкость</h3>
+        <label for="effectsVolume"><span id="effectsLabel">Звуки</span><output id="effectsVolumeValue">80%</output></label>
+        <input id="effectsVolume" type="range" min="0" max="100" step="1">
+        <label for="musicVolume"><span id="musicLabel">Музыка</span><output id="musicVolumeValue">35%</output></label>
+        <input id="musicVolume" type="range" min="0" max="100" step="1">
+    </div>
+</div>
+<div id="gameNotice" role="status" aria-live="polite"></div>
+<div id="peerCountdown" role="status" hidden></div>
+<div class="overlay" id="progressOv"><div class="modal progress-modal" role="dialog" aria-modal="true" aria-labelledby="progressTitle"><button class="xbtn" id="progressClose" aria-label="Закрыть">✕</button><h2 id="progressTitle"></h2><div id="progressBody"></div></div></div>
+<div id="thinking">бот думает</div>
+<div id="toast"></div>
+<div id="hint"></div>
+<div id="adslot">РЕКЛАМА</div>
+<div id="testlog"></div>
+<div id="celebration" role="status" aria-live="polite">
+    <div class="celebration-particles" aria-hidden="true"></div>
+    <div class="celebration-card"><span class="celebration-icon" aria-hidden="true"></span><div><b id="celebrationTitle"></b><small id="celebrationDetail"></small></div></div>
+</div>
+
+<script src="js/vendor/peerjs.min.js?v=85"
+        onerror="window.__peerFailed = true"></script>
+<script src="js/noble-src.js?v=85"></script>
+<script src="js/physics.js?v=108"></script>
+<script src="js/bot.js?v=108"></script>
+<script src="js/server-config.js"></script>
+<script src="js/net.js?v=100"></script>
+<script src="js/lan.js?v=90"></script>
+<script src="js/i18n.js?v=110"></script>
+<script src="js/render.js?v=109"></script>
+<script src="js/tests.js?v=85"></script>
+<script src="js/chat.js?v=5"></script>
+<script src="js/daily.js?v=1"></script>
+<script src="js/levels.js?v=1"></script>
+<script src="js/main.js?v=113"></script>
+<script src="js/progress.js?v=1"></script>
+<script src="js/friends-local.js?v=2"></script>
+<script src="js/friends.js?v=3"></script>
+</body>
+</html>
