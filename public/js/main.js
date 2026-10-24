@@ -2194,7 +2194,7 @@ function drawCoach(c, now) {
     if (phase !== "aim" || sliderHeld || drag) return;
     const r = world.ring, k = (now % 2200) / 2200;
     c.save(); c.strokeStyle = "#ffcf70"; c.lineWidth = 4;
-    c.setLineDash([8, 8]); c.beginPath();
+    c.setLineDash([]); c.beginPath();
     if (tutStep === 0) { c.moveTo(r.x - 75, r.y); c.lineTo(r.x + 75, r.y); }
     else { c.moveTo(r.x, r.y); c.lineTo(r.x, r.y + 85); }
     c.stroke(); c.setLineDash([]);
@@ -2214,7 +2214,7 @@ function paintLesson(c, step, now) {
         c.font = "34px sans-serif"; c.fillStyle = "#fff";
         c.fillText("☝", x - 14, step === 0 ? 147 : 114 + Math.min(k * 2, 1) * 30);
         if (step === 1) {
-            c.setLineDash([5, 6]); c.strokeStyle = "#ffdc78";
+            c.setLineDash([]); c.strokeStyle = "#ffdc78";
             c.beginPath(); c.moveTo(180, 90); c.lineTo(180, 24); c.stroke();
             c.setLineDash([]);
             RND.drawRing(c, {x:180, y:110 - Math.max(0, k - .55) * 190, r:17, ri:10}, RND.ringColors().ringP1, false, false);

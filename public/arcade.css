@@ -136,3 +136,20 @@ body:has(#scr-game.active) .connection-banner{bottom:8px}
 @media(max-width:360px){.arc-hero{width:calc(100% + 20px)}}
 .color-open{font-size:10px;line-height:1.2;color:var(--muted);max-width:66px;white-space:normal}
 .arc-hero .arc-table-image{transform:none}
+/* Gameplay material pass: dark green room, quieter controls and breathing space. */
+body:has(#scr-game.active),body:has(#scr-game.active)::before{background:#031a13}
+#scr-game{background:#041e16}
+#scr-game .bar{background:#06271c;border-color:#52634855}
+#scr-game .side .avbig{border-color:#b8a16d;box-shadow:0 3px 7px #0005}
+#sliderRow{padding-top:12px}
+#oppSliderRow{padding-bottom:12px}
+#ringSlider::-webkit-slider-runnable-track,#oppSlider::-webkit-slider-runnable-track{background:#937949;border-color:#b29a65;box-shadow:0 1px 2px #0004}
+#ringSlider::-moz-range-track,#oppSlider::-moz-range-track{background:#937949;border-color:#b29a65}
+/* Oversized home illustration sits behind the real interactive controls. */
+#scr-menu{overflow-x:hidden}
+.arc-hero{overflow:visible;position:relative;z-index:0;pointer-events:none}
+.arc-hero .arc-table-image{transform:translateY(-4px) scale(1.42);transform-origin:50% 0;pointer-events:none}
+#scr-menu .arc-modes,#scr-menu #homePlay,#scr-menu .arc-secondary,#scr-menu .arc-home-friends{position:relative;z-index:2}
+#scr-menu .menu-top,#scr-menu .arc-brand{position:relative;z-index:3}
+@media(max-height:740px){.arc-hero .arc-table-image{transform:translateY(-4px) scale(1.35)}}
+#scr-game.screen{background:#041e16}

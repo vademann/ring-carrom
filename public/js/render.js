@@ -12,7 +12,7 @@ const PHY = global.RCPhysics;
 const THEMES = [
     {
         id: "classic", ru: "Классика", en: "Classic",
-        wood1: "#167e88", wood2: "#063b50",
+        wood1: "#745038", wood2: "#352318",
         felt1: "#ffe1a1", felt2: "#edb86e", vignette: "rgba(150,75,18,0.10)",
         mark: "rgba(178,58,46,0.78)",
         markRgb: "178,58,46", markSoft: "rgba(178,58,46,0.45)",
@@ -129,7 +129,7 @@ function ringColors() {
     const t = THEMES[themeIdx];
     return {
         ringP1: t.id === "night" ? "#ff6150" : "#f33342",
-        ringP2: t.id === "cherry" ? "#65fbc0" : "#12bf83",
+        ringP2: t.id === "night" ? "#ff6150" : "#f33342",
         aim: t.aim, aimHot: t.aimHot,
     };
 }
@@ -497,7 +497,7 @@ const previewURL = (function () {
     const cache = {};
     return function (idx, w, h) {
         w = w || 320; h = h || 210;
-        const key = idx + "@" + w + "x" + h;
+        const key = idx + "@" + w + "x" + h + "|" + stoneTextureReady() + "|" + walnutTextureReady();
         if (cache[key]) return cache[key];
         const s0 = 240;
         const wall = s0 * 0.045, stoneR = s0 * 0.024 * 0.85, ringR = s0 * 0.065 * 0.85, pocketR = s0 * 0.024 * 1.5 * 0.9;
@@ -529,34 +529,32 @@ function avatarURL(idx, px) {
     return personURL(AVATARS[Math.max(0, Math.min(AVATARS.length - 1, idx))], px);
 }
 
-// мраморные разводы сукна — рисуются один раз в оффскрин
+// Real material assets, cached once per theme and size; no per-frame texture work.
 let feltCache = null;
-function feltTexture(w) {
-    const T = currentTheme();
-    const key = w.size + "|" + T.id;
-    if (feltCache && feltCache.key === key) return feltCache.cnv;
-    const cnv = document.createElement("canvas");
-    cnv.width = cnv.height = w.size;
-    const g = cnv.getContext("2d");
-    const fg = g.createRadialGradient(w.size / 2, w.size / 2, w.size * 0.15, w.size / 2, w.size / 2, w.size * 0.72);
-    fg.addColorStop(0, T.felt1); fg.addColorStop(1, T.felt2);
-    g.fillStyle = fg;
-    g.fillRect(0, 0, w.size, w.size);
-    let seed = 7;
-    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    for (let i = 0; i < 26; i++) {
-        const x = rnd() * w.size, y = rnd() * w.size;
-        const r = w.size * (0.05 + rnd() * 0.16);
-        const gr = g.createRadialGradient(x, y, 0, x, y, r);
-        gr.addColorStop(0, i % 2 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)");
-        gr.addColorStop(1, "rgba(0,0,0,0)");
-        g.fillStyle = gr;
-        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-    }
-    feltCache = { key, cnv };
-    return cnv;
+const stoneMaterial = new Image(), walnutMaterial = new Image();
+function stoneTextureReady(){return stoneMaterial.complete && stoneMaterial.naturalWidth > 0;}
+function walnutTextureReady(){return walnutMaterial.complete && walnutMaterial.naturalWidth > 0;}
+function materialLoaded(){
+    feltCache=null;
+    if(document.getElementById('scr-settings')?.classList.contains('active'))global.renderSettings?.();
 }
-
+stoneMaterial.onload=materialLoaded;walnutMaterial.onload=materialLoaded;
+stoneMaterial.src='img/beige-stone.png';walnutMaterial.src='img/dark-walnut.png';
+function feltTexture(w) {
+    const T=currentTheme(),key=w.size+'|'+T.id+'|'+stoneTextureReady();
+    if(feltCache?.key===key)return feltCache.cnv;
+    const cnv=document.createElement('canvas');cnv.width=cnv.height=w.size;
+    const g=cnv.getContext('2d');
+    g.fillStyle=T.id==='classic'?'#ead9b9':T.felt1;g.fillRect(0,0,w.size,w.size);
+    if(stoneTextureReady()){
+        g.drawImage(stoneMaterial,0,0,w.size,w.size);
+        if(T.id!=='classic'){
+            g.globalCompositeOperation='multiply';g.fillStyle=T.felt1;g.fillRect(0,0,w.size,w.size);
+            g.globalCompositeOperation='source-over';
+        }
+    }
+    feltCache={key,cnv};return cnv;
+}
 // ── Разметка сукна ──
 function drawMarkings(ctx, w) {
     const s = w.size, cx = s / 2, cy = s / 2;
@@ -609,6 +607,14 @@ function drawBoard(ctx, w, st) {
     grd.addColorStop(1, T.wood2);
     roundRect(ctx, 0, 0, s, s, 14);
     ctx.fillStyle = grd; ctx.fill();
+    if(walnutTextureReady()){
+        ctx.save();ctx.clip();ctx.translate(s/2,s/2);
+        for(let side=0;side<4;side++){
+            ctx.save();ctx.rotate(side*Math.PI/2);
+            ctx.drawImage(walnutMaterial,-s/2,-s/2,s,w.wall+1);ctx.restore();
+        }
+        ctx.restore();
+    }
     ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 2; ctx.stroke();
     roundRect(ctx, w.wall * 0.28, w.wall * 0.28, s - w.wall * 0.56, s - w.wall * 0.56, 9);
     ctx.strokeStyle = T.frameHi; ctx.lineWidth = 1.4; ctx.stroke();
@@ -618,32 +624,6 @@ function drawBoard(ctx, w, st) {
     ctx.strokeRect(w.L - 1.5, w.T - 1.5, s - 2 * w.L + 3, s - 2 * w.T + 3);
 
     drawMarkings(ctx, w);
-
-    const [x0, x1] = PHY.baselineRange(w);
-    const rcCol = ringColors();
-    for (const turn of [0, 1]) {
-        const y = PHY.baselineY(w, turn);
-        const active = st && st.phase === "aim" && st.turn === turn;
-        ctx.setLineDash([5, 8]);
-        ctx.strokeStyle = active ? (turn === 0 ? rcCol.ringP1 : rcCol.ringP2) : T.baseline;
-        ctx.lineWidth = active ? 1.8 : 1.3;
-        ctx.beginPath();
-        ctx.moveTo(x0, y); ctx.lineTo(x1, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        if (active) {
-            ctx.fillStyle = T.mark;
-            ctx.globalAlpha = 0.7;
-            for (const [ax, dir] of [[x0 - 12, 1], [x1 + 12, -1]]) {
-                ctx.beginPath();
-                ctx.moveTo(ax + dir * 6, y);
-                ctx.lineTo(ax - dir * 2, y - 4);
-                ctx.lineTo(ax - dir * 2, y + 4);
-                ctx.closePath(); ctx.fill();
-            }
-            ctx.globalAlpha = 1;
-        }
-    }
 
     // лузы — маленькие чёрные «дыры»
     for (const p of w.pockets) {
@@ -731,7 +711,7 @@ function drawRing(ctx, ring, color, ghost, blocked) {
     if (blocked) {
         ctx.beginPath();
         ctx.arc(ring.x, ring.y, ring.r + 5, 0, Math.PI * 2);
-        ctx.setLineDash([4, 5]);
+        ctx.setLineDash([]);
         ctx.strokeStyle = "rgba(178,58,46,0.85)";
         ctx.lineWidth = 1.6; ctx.stroke();
         ctx.setLineDash([]);
@@ -741,7 +721,7 @@ function drawRing(ctx, ring, color, ghost, blocked) {
 
 function drawAim(ctx, ring, angle, power, len, color) {
     const ux = Math.cos(angle), uy = Math.sin(angle);
-    ctx.setLineDash([5, 8]);
+    ctx.setLineDash([]);
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.8;
     ctx.beginPath();

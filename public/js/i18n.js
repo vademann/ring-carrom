@@ -153,7 +153,7 @@ const DYN = {
     tut2h: ["Сила удара", "Shot power"],
     tut2b: ["Коснитесь кольца, потяните назад и отпустите. Чем сильнее натяжение, тем мощнее бросок. Попробуйте!", "Touch the ring, pull back and release. Pull farther for a stronger shot. Try it!"],
     tut3h: ["Очки", "Scoring"],
-    tut3b: ["В начале цвета не назначены. Первая забитая фишка определяет цвет забившего игрока, соперник получает другой. Своя фишка даёт очко и ещё один бросок. Чужая — очко сопернику и переход хода. Кольцо — плоское, с отверстием: фишка может пройти через его центр.", "Colors start undecided. The first puck potted determines the shooter's color; the opponent gets the other. Your puck scores a point and another shot. An opponent's puck scores for them and passes the turn. The ring is flat and hollow: a puck can pass through its center."],
+    tut3b: ["В начале цвета не назначены. Первая забитая фишка определяет цвет забившего игрока, соперник получает другой. Своя фишка даёт очко и ещё один бросок. Чужая — очко сопернику и переход хода.", "Colors start undecided. The first puck potted determines the shooter's color; the opponent gets the other. Your puck scores a point and another shot. An opponent's puck scores for them and passes the turn."],
     tut4h: ["Победа", "Victory"],
     tut4b: ["Побеждает тот, кто первым забьёт все шайбы своего цвета.", "The first player to pot all pucks of their color wins."],
     comboDouble: ["Дубль!", "Double!"],
