@@ -9,7 +9,7 @@ window.RCArcade = (() => {
     const legacy=make('div','arc-legacy');legacy.hidden=true;
     for(const child of [...home.children])if(child!==header){legacy.append(child);}
     const brand=make('div','arc-brand');brand.append(logo);
-    const hero=make('div','arc-hero'),tableImage=make('img','arc-table-image');tableImage.id='homeBoard';tableImage.src='img/classic-board-3d.png';tableImage.width=1448;tableImage.height=1086;hero.append(tableImage);
+    const hero=make('div','arc-hero'),tableImage=make('img','arc-table-image');tableImage.id='homeBoard';tableImage.src='img/classic-board-3d.png?v=3';tableImage.width=1448;tableImage.height=1086;hero.append(tableImage);
     let selectedMode='online';
     const modes=make('div','arc-modes');modes.setAttribute('role','group');
     const online=action('homeModeOnline','world',()=>selectMode('online')),bot=action('homeModeBot','robot',()=>selectMode('bot'));modes.append(online,bot);
