@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.ringcarromv1",
+      "sha256_cert_fingerprints": ["C4:86:AF:2A:CD:F2:54:DE:D3:7E:61:DC:75:2E:86:CB:F8:AF:CC:EA:A1:E0:EE:3E:2D:BA:96:5B:48:FC:0A:59"]
+    }
+  }
+]

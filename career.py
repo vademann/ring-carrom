@@ -66,3 +66,13 @@ def record(game, players, winner, reason, at):
             profile = players[1-i].profile or {}
             db.execute('INSERT INTO matches VALUES(?,?,?,?,?,?,?)',
                 (game,key,at,result,str(profile.get('name','Соперник'))[:12],change,reason))
+
+def install(key,value):
+    """Refresh the disposable local cache only after a cloud commit."""
+    columns=('rating','wins','losses','draws','streak','best','shots','hits')
+    with connect() as db:
+        ensure(db,key)
+        db.execute('UPDATE players SET '+','.join(c+'=?' for c in columns)+' WHERE id=?',(*[value[c] for c in columns],key))
+        db.execute('DELETE FROM matches WHERE player=?',(key,))
+        for row in reversed(value.get('history',[])):
+            db.execute('INSERT OR IGNORE INTO matches VALUES(?,?,?,?,?,?,?)',(row['game'],key,row['at'],row['result'],row['opponent'],row['delta'],row['reason']))

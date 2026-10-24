@@ -28,8 +28,8 @@
     const net = {
         request,
         identity() {
-            let value=localStorage.getItem('rc_identity');
-            if(!/^[a-f0-9]{64}$/.test(value||'')){value=token();localStorage.setItem('rc_identity',value);}
+            let value=global.RCStore?RCStore.get('rc_identity'):RCStore.get('rc_identity');
+            if(!/^[a-f0-9]{64}$/.test(value||'')){value=token();RCStore.set('rc_identity',value);}
             return value;
         },
         async career() {
@@ -47,11 +47,11 @@
         inbox:new Map(), diagnostics:{gaps:0,replays:0,errors:[],lastClose:null},
         get ready() { return typeof WebSocket !== "undefined"; },
         saved() {
-            try { const s=JSON.parse(localStorage.getItem("rc_session")); return s && Date.now()-s.savedAt<900000 && s.token && s.everConnected && !this.departures().some(e=>e.token===s.token) ? s : null; } catch(e) { return null; }
+            try { const s=JSON.parse(RCStore.get("rc_session")); return s && Date.now()-s.savedAt<900000 && s.token && s.everConnected && !this.departures().some(e=>e.token===s.token) ? s : null; } catch(e) { return null; }
         },
         persist() {
             if (!this.active || !this.token || !this.everConnected) return;
-            try { localStorage.setItem("rc_session",JSON.stringify({endpoint:this.endpoint(),urls:this.endpoints(),savedAt:Date.now(),token:this.token,code:this.code,myIndex:this.myIndex,operation:this.operation,nextSeq:this.nextSeq,lastReceived:this.lastReceived,pending:[...this.pending],everConnected:true,polling:!!this.polling})); } catch(e) {}
+            try { RCStore.set("rc_session",JSON.stringify({endpoint:this.endpoint(),urls:this.endpoints(),savedAt:Date.now(),token:this.token,code:this.code,myIndex:this.myIndex,operation:this.operation,nextSeq:this.nextSeq,lastReceived:this.lastReceived,pending:[...this.pending],everConnected:true,polling:!!this.polling})); } catch(e) {}
         },
         resumeSaved(s) {
             this.destroy(false);
@@ -60,12 +60,12 @@
             if(s.polling || global.RCOnline)this.startPolling();else this.attempt();
         },
         departures() {
-            try {return (this.departureFallback || JSON.parse(global.RCOnline?.loadDepartures?RCOnline.loadDepartures():localStorage.getItem("rc_departures"))||[]).filter(s=>s.token && Date.now()-s.created<900000);}catch(e){return [];}
+            try {return (this.departureFallback || JSON.parse(global.RCOnline?.loadDepartures?RCOnline.loadDepartures():RCStore.get("rc_departures"))||[]).filter(s=>s.token && Date.now()-s.created<900000);}catch(e){return [];}
         },
         saveDepartures(entries) {
             const value=JSON.stringify(entries);
             this.departureFallback=global.RCOnline?.saveDepartures && !RCOnline.saveDepartures(value)?entries:null;
-            try {localStorage.setItem("rc_departures",value);}catch(e){this.departureFallback=entries;}
+            try {RCStore.set("rc_departures",value);}catch(e){this.departureFallback=entries;}
         },
         queueLeave(s) {
             if(!s || !s.token)return;
@@ -88,7 +88,7 @@
                         } catch(e) {} finally {clearTimeout(timer);}
                         if(closed){
                             this.saveDepartures(this.departures().filter(s=>s.token!==entry.token));
-                            try {if(JSON.parse(localStorage.getItem("rc_session"))?.token===entry.token)localStorage.removeItem("rc_session");}catch(e){}
+                            try {if(JSON.parse(RCStore.get("rc_session"))?.token===entry.token)RCStore.remove("rc_session");}catch(e){}
                             break;
                         }
                     }
@@ -102,7 +102,7 @@
             this.queueLeave(s);
             if(this.active && this.token===s.token)this.destroy(false);
             const saved=this.saved();
-            if(!saved || saved.token===s.token)localStorage.removeItem("rc_session");
+            if(!saved || saved.token===s.token)RCStore.remove("rc_session");
         },
         async checkSaved(s) {
             for(const endpoint of [...new Set([...this.endpoints(),...(s.urls||[]),s.endpoint].filter(Boolean))]) {
@@ -114,7 +114,8 @@
             }
             return null;
         },
-        emit(kind) { if(this.onStatus) this.onStatus(kind); },
+        emit(kind) { if(this.onStatus) this.onStatus(kind);global.dispatchEvent?.(new CustomEvent('rc-network-status',{detail:kind})); },
+        retryNow() {if(!this.active)return;if(this.polling){clearTimeout(this.pollTimer);if(this.pollController)this.pollController.abort();else this.pollTimer=setTimeout(()=>this.poll(),0);}else{clearTimeout(this.retry);this.attempt();}},
         endpoints() {
             if(!this.urls) {
                 const origin=/^https?:$/.test(location.protocol)?[(location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws"]:[];
@@ -139,7 +140,7 @@
             const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),5000);
             try {
                 const response=await request(this.endpoint().replace(/^ws/,"http").replace(/\/ws$/,"/config"),{signal:controller.signal,cache:"no-store"});
-                if(response.ok) { const config=await response.json();if(Array.isArray(config.urls))this.addEndpoints(config.urls.map(u=>u.replace(/^http/,"ws")+"/ws"),true); }
+                if(response.ok) { const config=await response.json();if(Array.isArray(config.urls))this.addEndpoints(config.urls.map(u=>String(u).replace(/^http/,"ws").replace(/\/+$/,'').replace(/(?:\/ws)?$/,'/ws')),true); }
             } catch(e) {} finally {clearTimeout(timer);}
         },
         connect(op, code, onReady, quick=false) {
@@ -406,7 +407,7 @@
             this.polling=false;clearTimeout(this.pollTimer);
             if(this.pollController)this.pollController.abort();
             this.reloading=false;
-            if (leave) localStorage.removeItem("rc_session");
+            if (leave) RCStore.remove("rc_session");
             this.active=false;
             this.generation++;
             clearInterval(this.heartbeat);

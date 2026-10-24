@@ -112,13 +112,13 @@ const PUCKS = [
 ];
 
 // ── Активный стиль (индексы читаются из localStorage) ──
-let themeIdx = Math.min(Math.max(+(localStorage.getItem("rc_theme") || 0) || 0, 0), THEMES.length - 1);
-let puckIdx = Math.min(Math.max(+(localStorage.getItem("rc_puck") || 0) || 0, 0), PUCKS.length - 1);
+let themeIdx = Math.min(Math.max(+(RCStore.get("rc_theme") || 0) || 0, 0), THEMES.length - 1);
+let puckIdx = Math.min(Math.max(+(RCStore.get("rc_puck") || 0) || 0, 0), PUCKS.length - 1);
 let themeOverride = null;
 
 function refreshStyle() {
-    themeIdx = Math.min(Math.max(+(localStorage.getItem("rc_theme") || 0) || 0, 0), THEMES.length - 1);
-    puckIdx = Math.min(Math.max(+(localStorage.getItem("rc_puck") || 0) || 0, 0), PUCKS.length - 1);
+    themeIdx = Math.min(Math.max(+(RCStore.get("rc_theme") || 0) || 0, 0), THEMES.length - 1);
+    puckIdx = Math.min(Math.max(+(RCStore.get("rc_puck") || 0) || 0, 0), PUCKS.length - 1);
 }
 
 function currentTheme() { return themeOverride || THEMES[themeIdx]; }

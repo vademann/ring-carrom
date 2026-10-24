@@ -20,10 +20,10 @@ let world = PHY.createWorld();
 let turn = 0;
 let phase = "aim";           // aim | drag | slide | moving | bot | botAim | over
 let scores = [0, 0];
-let difficulty = +(localStorage.getItem("rc_diff") || 1);
-let soundVolume = Math.max(0, Math.min(1, +(localStorage.getItem("rc_sound_volume") ?? 0.8)));
-let musicVolume = Math.max(0, Math.min(1, +(localStorage.getItem("rc_music_volume") ?? 0.35)));
-let soundOn = localStorage.getItem("rc_sound") !== "0";
+let difficulty = +(RCStore.get("rc_diff") || 1);
+let soundVolume = Math.max(0, Math.min(1, +(RCStore.get("rc_sound_volume") ?? 0.8)));
+let musicVolume = Math.max(0, Math.min(1, +(RCStore.get("rc_music_volume") ?? 0.35)));
+let soundOn = RCStore.get("rc_sound") !== "0";
 let myIndex = 0;             // в онлайн-режиме: 0 хост, 1 гость
 let ringPlaced = true;       // false — кольцо ждёт выбора места (ghost)
 let pendingWinner = null;
@@ -89,8 +89,8 @@ function receiveState(msg) {
     if (!same) restoreSnapshot(msg.state, msg.move);
 }
 function localProfile() {
-    const avatar = Number(localStorage.getItem("rc_avatar") || 0);
-    return { name: (localStorage.getItem("rc_name") || I18N.t("defaultName")).trim().slice(0, 12),
+    const avatar = Number(RCStore.get("rc_avatar") || 0);
+    return { name: (RCStore.get("rc_name") || I18N.t("defaultName")).trim().slice(0, 12),
         avatar: Number.isInteger(avatar) && avatar >= 0 && avatar < RND.AVATARS.length ? avatar : 0 };
 }
 function sendProfile() { NET.send({ t: "profile", ...localProfile(), social:window.RCLocalFriends?.profile() }); }
@@ -218,6 +218,7 @@ function showScreen(id) {
         comboUntil = 0;
         setHint(""); $("toast").classList.remove("show"); $("thinking").classList.remove("show");
     }
+    window.dispatchEvent(new Event('rc-screen-changed'));
 }
 
 function ringColor() {
@@ -227,7 +228,7 @@ function ringColor() {
 
 function nameOf(t) {
     if (mode === "online") return t === myIndex ? localProfile().name : (opponentProfile ? opponentProfile.name : I18N.t("nameOpp"));
-    if (mode === "bot") return t === 0 ? (localStorage.getItem("rc_name") || I18N.t("defaultName")) : (botPersona ? botPersona.name : I18N.t("nameBot"));
+    if (mode === "bot") return t === 0 ? (RCStore.get("rc_name") || I18N.t("defaultName")) : (botPersona ? botPersona.name : I18N.t("nameBot"));
     return t === 0 ? I18N.t("nameP1") : I18N.t("nameP2");
 }
 function colorName(t) { return t === 0 ? I18N.t("colorW") : I18N.t("colorB"); }
@@ -244,7 +245,7 @@ function updateBar() {
         return;
     }
     const dim = phase === "over" ? " dim" : "";
-    const myAv = RND.avatarURL(+(localStorage.getItem("rc_avatar") || 0), 44);
+    const myAv = RND.avatarURL(+(RCStore.get("rc_avatar") || 0), 44);
     let oppAv;
     if (mode === "bot") oppAv = botPersona ? RND.personURL(botPersona, 44) : myAv;
     else if (mode === "online") oppAv = opponentProfile ? RND.avatarURL(opponentProfile.avatar, 44) : "";
@@ -446,7 +447,7 @@ function finishLocalShot() {
             }
         }
 
-        if (pendingWinner !== null) {
+        if (wLeft === 0 || bLeft === 0) {
             phase = "over";
             updateBar();
             clearTimeout(comboFinishTimer);
@@ -551,9 +552,10 @@ const rewardedWins = new WeakSet();
 function showWin(reward) {
     celebrate("celebrateWin", "celebrateReward", { n: reward }, "🏆", false);
     if (!rewardedWins.has(world)) {
+        RCStore.reward(null,reward,reward);
+        window.RCProgress?.unlockCosmetics();
         rewardedWins.add(world);
-        addCoins(reward);
-        RCLevel.victory(reward);
+        renderCoins();
     }
     renderHomeProfile();
     $("winXp").textContent = I18N.t("winExperience", {n:reward});
@@ -622,11 +624,11 @@ function plural(n) {
 }
 
 function saveBest(key, v) {
-    const old = +(localStorage.getItem(key) || 0);
-    if (v > old) localStorage.setItem(key, String(v));
+    const old = +(RCStore.get(key) || 0);
+    if (v > old) RCStore.set(key, String(v));
 }
 function bestRecord(key) {
-    return localStorage.getItem(key) || "—";
+    return RCStore.get(key) || "—";
 }
 
 function showOver(title, res, sub) {
@@ -787,6 +789,7 @@ function attachNetHandlers() {
                 clearTimeout(comboFinishTimer);updateBar();finishMatch();
                 const reasons={inactivity:trText("Три пропущенных хода подряд","Three missed turns"),disconnect:trText("Время на возвращение истекло","Reconnect time expired"),left:trText("Противник вышел из игры","Opponent left the game")};
                 if(reasons[msg.reason])$("overRes").textContent=reasons[msg.reason];
+                window.RCProgress?.showResult(msg,myIndex);
             }
         } else if (msg.t === "restore-game") {
             opponentProfile = msg.profile || null;
@@ -1069,8 +1072,8 @@ function onEnd(e) {
 // ═══════════════ Тренировки/статистика ═══════════════
 function refreshTrainingStats() {
     $("stFree").textContent = "";
-    const acc = localStorage.getItem("rc_best_accuracy");
-    const brk = localStorage.getItem("rc_best_break");
+    const acc = RCStore.get("rc_best_accuracy");
+    const brk = RCStore.get("rc_best_break");
     $("stAccuracy").textContent = acc ? I18N.t("record", { n: acc }) : I18N.t("noRecord");
     $("stBreak").textContent = brk ? I18N.t("record", { n: brk }) : I18N.t("noRecord");
 }
@@ -1138,7 +1141,7 @@ function refreshSeg() {
 document.querySelectorAll("#diffOv .diffopt").forEach(o => {
     o.addEventListener("click", () => {
         difficulty = +o.dataset.d;
-        localStorage.setItem("rc_diff", String(difficulty));
+        RCStore.set("rc_diff", String(difficulty));
         refreshSeg();
     });
 });
@@ -1362,9 +1365,9 @@ for (const [id,key] of [["effectsVolume","sound"],["musicVolume","music"]]) {
     $(id+"Value").textContent = $(id).value+"%";
     $(id).addEventListener("input", () => {
         ensureAudio(); const value = Number($(id).value)/100;
-        if (key === "sound") { soundVolume=value; soundOn=value>0; localStorage.setItem("rc_sound",soundOn?"1":"0"); }
+        if (key === "sound") { soundVolume=value; soundOn=value>0; RCStore.set("rc_sound",soundOn?"1":"0"); }
         else musicVolume=value;
-        localStorage.setItem("rc_"+key+"_volume",value);
+        RCStore.set("rc_"+key+"_volume",value);
         $(id+"Value").textContent = Math.round(value*100)+"%";
         refreshSound(); updateMenuMusic();
     });
@@ -1505,10 +1508,9 @@ $("tutClose").addEventListener("click", () => {
 // ═══════════════ Магазин ═══════════════
 const PRICE = 100;
 function coins() {
-    const v = localStorage.getItem("rc_coins");
-    return v === null ? 500 : +(v) || 0;   // стартовый запас — 500 алмазов
+    return RCStore.balance();
 }
-function addCoins(n) { localStorage.setItem("rc_coins", String(coins() + n)); renderCoins(); }
+function addCoins(n) { RCStore.commit({rc_coins:String(coins()+n)}); renderCoins(); }
 function renderHomeProfile() {
     const profile = localProfile(), progress = RCLevel.state();
     $("homeAvatar").src = RND.avatarURL(profile.avatar, 64);
@@ -1530,20 +1532,20 @@ function renderCoins() {
     const b = $("coinsMenu"); if (b) b.textContent = v;
 }
 function ownedList(kind) {
-    try { return JSON.parse(localStorage.getItem("rc_own_" + kind) || "[0]"); } catch (e) { return [0]; }
+    try { return JSON.parse(RCStore.get("rc_own_" + kind) || "[0]"); } catch (e) { return [0]; }
 }
-function setOwned(kind, list) { localStorage.setItem("rc_own_" + kind, JSON.stringify(list)); }
+function setOwned(kind, list) { RCStore.set("rc_own_" + kind, JSON.stringify(list)); }
 
 function renderSettings() {
     renderCoins();
     renderLoginCalendar();
     renderHomeProfile();
-    $("avProf").src = RND.avatarURL(+(localStorage.getItem("rc_avatar") || 0), 44);
+    $("avProf").src = RND.avatarURL(+(RCStore.get("rc_avatar") || 0), 44);
     const ni = $("nameInput");
-    if (document.activeElement !== ni) ni.value = localStorage.getItem("rc_name") || I18N.t("defaultName");
-    const tSel = +(localStorage.getItem("rc_theme") || 0);
-    const pSel = +(localStorage.getItem("rc_puck") || 0);
-    const aSel = +(localStorage.getItem("rc_avatar") || 0);
+    if (document.activeElement !== ni) ni.value = RCStore.get("rc_name") || I18N.t("defaultName");
+    const tSel = +(RCStore.get("rc_theme") || 0);
+    const pSel = +(RCStore.get("rc_puck") || 0);
+    const aSel = +(RCStore.get("rc_avatar") || 0);
     const tOwn = ownedList("themes");
     const pOwn = ownedList("pucks");
     const lang = I18N.lang;
@@ -1589,7 +1591,7 @@ function confirmNameChange() {
     const name = $("nameInput").value.trim().slice(0, 12) || I18N.t("defaultName");
     if (name === localProfile().name) return;
     askConfirm("confirmName", "btnSaveProfile", () => {
-        localStorage.setItem("rc_name", name);
+        RCStore.set("rc_name", name);
         $("nameInput").blur(); renderSettings(); updateBar(); sendProfile();
         showToast(I18N.t("nameSaved"));
     }, "btnCancelProfile");
@@ -1615,47 +1617,46 @@ function shopClick(kind, i, act) {
         if (kind === "avatar") {
             if (localProfile().avatar === i) return;
             askConfirm("confirmAvatar", "btnSaveProfile", () => {
-                localStorage.setItem("rc_avatar", String(i));
+                RCStore.set("rc_avatar", String(i));
                 renderSettings(); updateBar(); sendProfile();
                 showToast(I18N.t("avatarSaved"));
             }, "btnCancelProfile");
             return;
         }
-        localStorage.setItem(selKey, String(i));
+        RCStore.set(selKey, String(i));
         if (kind !== "avatar") RND.refreshStyle();
         renderSettings();
         return;
     }
     if (act !== "buy") return;
     if (coins() < PRICE) { showToast(I18N.t("toastNotEnough"), 1800); return; }
-    addCoins(-PRICE);
     const list = ownedList(kind === "theme" ? "themes" : "pucks");
     list.push(i);
-    setOwned(kind === "theme" ? "themes" : "pucks", list);
-    localStorage.setItem(selKey, String(i));
+    RCStore.commit({rc_coins:String(coins()-PRICE),['rc_own_'+(kind==='theme'?'themes':'pucks')]:JSON.stringify(list),[selKey]:String(i)});
     RND.refreshStyle();
     renderSettings();
     popItem(kind, i);
     celebrate("celebratePurchase", "celebratePurchaseDetail", {}, "🎁");
 }
+function safeShopClick(kind,i,act){try{shopClick(kind,i,act);}catch(_){showToast(trText('Не удалось сохранить покупку. Освободите место и повторите.','Could not save the purchase. Free some space and retry.'),3500);}}
 
 $("avatarGrid").addEventListener("click", e => {
     const item = e.target.closest(".shopitem");
     if (!item) return;
     const btn = e.target.closest(".buybtn");
-    shopClick("avatar", +item.dataset.i, btn ? btn.dataset.act : undefined);
+    safeShopClick("avatar", +item.dataset.i, btn ? btn.dataset.act : undefined);
 });
 $("themeGrid").addEventListener("click", e => {
     const item = e.target.closest(".shopitem");
     if (!item) return;
     const btn = e.target.closest(".buybtn");
-    shopClick("theme", +item.dataset.i, btn ? btn.dataset.act : undefined);
+    safeShopClick("theme", +item.dataset.i, btn ? btn.dataset.act : undefined);
 });
 $("puckGrid").addEventListener("click", e => {
     const item = e.target.closest(".shopitem");
     if (!item) return;
     const btn = e.target.closest(".buybtn");
-    shopClick("puck", +item.dataset.i, btn ? btn.dataset.act : undefined);
+    safeShopClick("puck", +item.dataset.i, btn ? btn.dataset.act : undefined);
 });
 
 // ═══════════════ Ползунок позиции кольца ═══════════════
@@ -2007,7 +2008,8 @@ function checkDaily() {
     if (!RCDaily.status().claimed) $("dailyOv").classList.add("open");
 }
 function claimLoginGift() {
-    const reward = RCDaily.claim();
+    let reward;
+    try{reward=RCDaily.claim();}catch(_){showToast(trText('Не удалось сохранить бонус. Освободите место и повторите.','Could not save the bonus. Free some space and retry.'),3500);return;}
     renderCoins(); renderLoginCalendar();
     $("dailyOv").classList.remove("open");
     if (reward) celebrate("celebrateDaily", "celebrateReward", {n:reward}, "💎");
@@ -2036,7 +2038,7 @@ function offerSavedGame() {
         const exists=await RCNet.checkSaved(saved);
         if(!deciding || RCNet.active)return;
         if(exists===false){
-            deciding=false;localStorage.removeItem("rc_session");
+            deciding=false;RCStore.remove("rc_session");
             $("confirmOv").classList.remove("open");
             showToast(I18N.t("oppLeft"));return;
         }

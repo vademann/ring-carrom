@@ -238,7 +238,7 @@ const DYN = {
 };
 
 const api = {
-    lang: localStorage.getItem("rc_lang") === "en" ? "en" : "ru",
+    lang: RCStore.get("rc_lang") === "en" ? "en" : "ru",
     t(key, vars) {
         const pair = DYN[key];
         if (!pair) return key;
@@ -249,7 +249,7 @@ const api = {
     set(lang) {
         document.getElementById("celebration").classList.remove("show");
         this.lang = lang === "en" ? "en" : "ru";
-        localStorage.setItem("rc_lang", this.lang);
+        RCStore.set("rc_lang", this.lang);
         this.apply();
     },
     apply() {

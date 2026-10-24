@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.sqlite3
+*.sqlite3-*
+*.db
+*.log
+secrets/
+*firebase-admin*.json
+*service-account*.json
+.env
+.env.*
+*.apk

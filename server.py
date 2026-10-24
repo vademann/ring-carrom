@@ -7,9 +7,12 @@ import secrets
 import sys
 import os
 import time
+from types import SimpleNamespace
 import career
 import social_relay
 from push_delivery import push
+from match_engine import engine
+from career_cloud import cloud
 from pathlib import Path
 from urllib.parse import urlsplit
 if sys.platform == 'win32':
@@ -25,6 +28,7 @@ rooms = {}
 tokens = {}
 clients = set()
 ended_tokens = {}
+rating_tasks = set()
 
 def revoke(credential):
     ended_tokens[credential] = time.monotonic()+GRACE
@@ -60,6 +64,8 @@ class Room:
         self.turn = 0
         self.state = None
         self.shot = None
+        self.expected = None
+        self.shot_at = 0
         self.restart = None
         self.restart_approved = False
         self.deadline = 0
@@ -68,6 +74,7 @@ class Room:
         self.result = None
         self.game_id = secrets.token_hex(16)
         self.paused = None
+        self.started_at = time.monotonic()
 
     @property
     def matched(self):
@@ -196,7 +203,12 @@ def sync_state(room):
     return {'t':'sync-state','match':room.match,'move':room.state_move,'state':room.state,'shot':room.shot,'serverNow':time.time()*1000,'skips':room.skips}
 
 def result_for(room, player):
-    return dict(room.result, career=career.read(player.career_id)) if room.result else None
+    if not room.result:return None
+    index=room.players.index(player)
+    eligible=room.result['reason']=='completed' or (room.result['winner']==index and sum(p.shots for p in room.players if p)>=3)
+    won=room.result['winner']==index
+    reward=dict(coins=20 if won else 10 if room.result['winner'] is None else 5,xp=30 if won else 20 if room.result['winner'] is None else 10) if eligible else dict(coins=0,xp=0)
+    return dict(room.result, career=career.read(player.career_id), reward=reward)
 
 async def finish_game(room, winner, reason):
     if room.result or room.state is None:
@@ -206,7 +218,26 @@ async def finish_game(room, winner, reason):
     room.shot = None
     room.state = dict(room.state, over=True, winner=winner, deadline=0)
     room.result = {'t':'game-result','match':room.match,'id':room.game_id,'winner':winner,'reason':reason}
-    career.record(room.game_id,room.players,winner,reason,int(time.time()*1000))
+    at=int(time.time()*1000)
+    saved_game_id=room.game_id
+    saved_players=[SimpleNamespace(career_id=p.career_id,profile=dict(p.profile or {}),shots=p.shots,hits=p.hits) if p else None for p in room.players]
+    try:
+        await cloud.record(saved_game_id,saved_players,winner,reason,at)
+    except Exception:
+        room.result['statsPending']=True
+        async def retry_rating():
+            for attempt in range(12):
+                await asyncio.sleep(min(60,2**attempt))
+                try:
+                    await cloud.record(saved_game_id,saved_players,winner,reason,at)
+                    if room.game_id==saved_game_id:
+                        room.result.pop('statsPending',None)
+                        for participant in room.players:
+                            if participant:await queue(participant,result_for(room,participant))
+                    return
+                except Exception:logging.warning('Rating save pending')
+        task=asyncio.create_task(retry_rating())
+        rating_tasks.add(task);task.add_done_callback(rating_tasks.discard)
     for player in room.players:
         if player:
             await queue(player,result_for(room,player))
@@ -281,7 +312,7 @@ async def session_message(room, index, player, ws, data):
                     room.match = payload['seed']
                     room.move = room.state_move = 0
                     room.turn = 0
-                    room.state = dict(payload['state'])
+                    room.state = await engine.call('initial', room.match)
                     room.shot = None
                     room.restart = None
                     room.restart_approved = False
@@ -319,18 +350,33 @@ async def session_message(room, index, player, ws, data):
                 await expire_turn(room)
                 accepted = (payload.get('match') == room.match and payload.get('move') == room.move + 1 and index == room.turn and room.shot is None and not room.result and room.paused is None)
                 if accepted:
+                    try:
+                        room.shot = payload
+                        expected = await engine.call('shot', room.state, payload)
+                    except Exception:
+                        room.shot = None
+                        await queue(player, sync_state(room))
+                        player.received = seq
+                        await send(player, {'op':'ack','seq':seq})
+                        return True
+                    if room.closed or room.result:
+                        room.shot=None
+                        return True
                     room.skips[index] = 0
                     player.shots += 1
                     payload['before'] = room.state
                     payload['player'] = index
                     room.move = payload['move']
                     room.shot = payload
+                    room.expected = expected
+                    room.shot_at = time.monotonic()
                     room.deadline = 0
             elif kind == 'state':
                 accepted = (payload['match'] == room.match and payload['move'] == room.move and room.shot is not None and room.shot['player'] == index)
                 if accepted:
-                    if payload['state']['scores'][index] > room.state['scores'][index]: player.hits += 1
-                    room.state = payload['state']
+                    if room.expected['scores'][index] > room.state['scores'][index]: player.hits += 1
+                    room.state = room.expected
+                    room.expected = None
                     room.state_move = room.move
                     room.turn = room.state['turn']
                     room.shot = None
@@ -510,7 +556,7 @@ async def websocket(request):
     return ws
 
 async def health(request):
-    return web.json_response({'status':'ok','rooms':len(rooms),'clients':len(clients),'resumeGrace':GRACE})
+    return web.json_response({'status':'ok','version':'2.0','authoritativePhysics':True,'cloudCareer':cloud.enabled,'rooms':len(rooms),'clients':len(clients),'resumeGrace':GRACE})
 
 async def network_config(request):
     public_url=os.environ.get('RC_PUBLIC_URL') or os.environ.get('RENDER_EXTERNAL_URL')
@@ -571,7 +617,7 @@ async def career_endpoint(request):
         body = await request.json()
         key = career.identity(body.get('identity')) if isinstance(body,dict) else None
         if not key: return web.json_response({'error':'identity'},status=400,headers=POLL_HEADERS)
-        return web.json_response(career.read(key),headers=POLL_HEADERS)
+        return web.json_response(await cloud.read(key),headers=POLL_HEADERS)
     except (ValueError,TypeError):
         return web.json_response({'error':'request'},status=400,headers=POLL_HEADERS)
 
@@ -739,6 +785,15 @@ async def room_cleanup(app):
                         player.ws = None
                         await send(room.players[1-index],{'op':'peer-away','grace':GRACE})
                 if room.matched and room.state and not room.result:
+                    # A client cannot freeze the turn forever by withholding its final state.
+                    if room.shot is not None and room.expected is not None and time.monotonic()-room.shot_at>16:
+                        owner=room.shot['player']
+                        if room.expected['scores'][owner]>room.state['scores'][owner]:room.players[owner].hits+=1
+                        room.state=room.expected;room.expected=None;room.state_move=room.move;room.turn=room.state['turn'];room.shot=None
+                        arm_turn(room)
+                        for participant in room.players:
+                            if participant:await queue(participant,sync_state(room))
+                        if room.state['over']:await finish_game(room,room.state['winner'],'completed')
                     absent = [i for i,p in enumerate(room.players) if not online(p)]
                     if absent:
                         if room.paused is None:
@@ -760,6 +815,9 @@ async def room_cleanup(app):
 
 async def shutdown(app):
     await asyncio.gather(*(ws.close(code=1001, message=b'Server shutdown') for ws in list(clients)))
+    for task in list(rating_tasks):task.cancel()
+    await asyncio.gather(*list(rating_tasks),return_exceptions=True)
+    await engine.close()
 
 def create_app():
     app = web.Application(client_max_size=65536)

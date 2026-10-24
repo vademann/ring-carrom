@@ -11,9 +11,9 @@
     const ready=(async()=>{
         const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(RCNet.identity()));
         const id=Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
-        try{data=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+        try{data=JSON.parse(RCStore.get(KEY));}catch(e){}
         if(!data || data.id!==id || data.version!==1) {
-            let old;try{old=JSON.parse(localStorage.getItem('rc_friends_cache'));}catch(e){}
+            let old;try{old=JSON.parse(RCStore.get('rc_friends_cache'));}catch(e){}
             data={version:1,id,login:old?.me?.login||makeLogin(),dnd:false,contacts:{},incoming:{},outgoing:{},blocked:{},favorites:{},recent:{},messages:{},invites:{},outbox:[],seen:{},cancelled:{}};
             if(!/^[a-z][a-z0-9_]{2,19}$/.test(data.login))data.login=makeLogin();
         }
@@ -43,7 +43,7 @@
         const recents=Object.entries(data.recent).sort((a,b)=>b[1]-a[1]).slice(0,30);data.recent=Object.fromEntries(recents);
         const spare=Object.values(data.contacts).filter(p=>!p.friendship&&!data.incoming[p.id]&&!data.outgoing[p.id]&&!data.blocked[p.id]&&!data.recent[p.id]).sort((a,b)=>(b.updated||0)-(a.updated||0));
         spare.slice(100).forEach(p=>delete data.contacts[p.id]);
-        try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){fail('storage_full');}
+        try{RCStore.set(KEY,JSON.stringify(data));}catch(e){fail('storage_full');}
         try{window.RCNotifications?.syncLocal(data);}catch(e){}
     }
     function contact(p) {
@@ -191,10 +191,10 @@
         if(action==='search') {
             const query=String(fields.query||'').trim(),parsed=parseCode(query);
             if(parsed){if(parsed.id===data.id)fail('user_not_found');contact(parsed);save();return {results:data.blocked[parsed.id]?[]:[view(data.contacts[parsed.id])]};}
-            const login=query.toLowerCase().replace(/^@/,'');if(!/^[a-z0-9_]{3,20}$/.test(login))fail('search_format');
+            const [login,tag]=query.toLowerCase().replace(/^@/,'').split('#');if(!/^[a-z0-9_]{3,20}$/.test(login)||(tag&&!/^[a-f0-9]{4,64}$/.test(tag)))fail('search_format');
             let result;try{result=await poll(login);}catch(e){}
             const known=Object.values(data.contacts).filter(p=>p.login.startsWith(login)&&!data.blocked[p.id]);
-            const results=result?.results||known;if(!online&&!results.length)fail('network');return {results:results.filter(p=>!data.blocked[p.id]).map(p=>view(data.contacts[p.id]||p))};
+            const results=result?.results||known;if(!online&&!results.length)fail('network');return {results:results.filter(p=>!data.blocked[p.id]&&(!tag||p.id.startsWith(tag))).map(p=>view(data.contacts[p.id]||p))};
         }
         const backup=JSON.stringify(data);
         try {

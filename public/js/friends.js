@@ -87,7 +87,7 @@
     }
     function person(p) {
         const row=node('div','friend-person'), img=node('img');img.src=RND.avatarURL(p.avatar,64);img.alt='';
-        const info=node('div');info.append(node('b','',p.name),node('small','','@'+p.login+' · '+p.id.slice(0,8)),node('small',state.connected&&p.status!=='offline'?'friend-online':'',statusText(p)));
+        const info=node('div');info.append(node('b','',p.name),node('small','','@'+p.login+'#'+p.id.slice(0,8)),node('small',state.connected&&p.status!=='offline'?'friend-online':'',statusText(p)));
         row.append(img,info);return row;
     }
     function confirmAction(p,action,text) {
@@ -123,7 +123,7 @@
         const d=state.data;
         el('friendsMenuLabel').textContent=tr('Друзья','Friends');el('friendsTitle').textContent=tr('Друзья','Friends');
         el('friendsRefresh').textContent=tr('Обновить','Refresh');el('friendsRefresh').disabled=state.busy;
-        el('friendsSelfLabel').textContent=tr('Ваш логин · код друга','Your username · friend code');el('friendsSelfLogin').textContent=d?'@'+d.me.login+' · '+d.me.id.slice(0,8):tr('Загрузка…','Loading…');
+        el('friendsSelfLabel').textContent=tr('Ваш логин · код друга','Your username · friend code');el('friendsSelfLogin').textContent=d?'@'+d.me.login+'#'+d.me.id.slice(0,8):tr('Загрузка…','Loading…');
         el('friendsSelfCopy').textContent=tr('Копировать код','Copy code');el('friendsSelfCopy').disabled=!d;
         const badges=d?d.incoming.length+Object.values(d.unread).reduce((a,b)=>a+b,0)+d.invites.filter(i=>i.receiver===d.me.id&&i.state==='pending').length:0;
         el('friendsBadge').hidden=!badges;el('friendsBadge').textContent=badges>99?'99+':badges;
@@ -131,7 +131,7 @@
         el('friendLoginSave').textContent=tr('Сохранить','Save');el('friendLoginSave').disabled=state.busy || !d;
         if(d && document.activeElement!==el('friendLogin'))el('friendLogin').value=d.me.login;
         el('friendLoginHelp').textContent=tr('3–20 символов: a–z, цифры и _. Логины могут совпадать; код друга уникален.','3–20 characters: a–z, digits and _. Usernames may repeat; friend codes are unique.');
-        el('friendGuestHelp').textContent=tr('Друзья и переписка хранятся только на телефоне. Сервер пересылает события между открытыми приложениями. При очистке данных доступ потеряется.','Friends and messages are stored only on your phone. The relay forwards events between open apps. Clearing data loses access.');
+        el('friendGuestHelp').textContent=tr('Друзья и переписка хранятся на телефоне. Для доставки в фоне включите уведомления. Сохраните резервную копию перед сменой телефона или очисткой данных.','Friends and messages are stored on your phone. Enable notifications for background delivery. Save a backup before changing phones or clearing data.');
         el('friendDndLabel').textContent=tr('Не беспокоить: без приглашений','Do not disturb: no invitations');el('friendDnd').checked=!!d?.dnd;el('friendDnd').disabled=state.busy||!d;
         el('friendLoginCopy').textContent=tr('Копировать код друга','Copy friend code');el('friendLoginCopy').disabled=!d;
         el('friendMessageInput').placeholder=tr('Сообщение другу…','Message your friend…');el('friendMessageSend').textContent=tr('Отправить','Send');
@@ -159,7 +159,7 @@
             const form=node('form','friend-search-row');form.id='friendSearchForm';const input=node('input');input.id='friendSearchInput';input.value=state.query;input.placeholder=tr('Логин или код друга','Username or friend code');input.maxLength=100;input.autocapitalize='none';input.autocomplete='off';input.spellcheck=false;input.setAttribute('aria-label',tr('Логин или код друга','Username or friend code'));input.oninput=()=>state.query=input.value;
             const submit=button(tr('Найти','Find'),null,'primary');submit.type='submit';form.append(input,submit);
             form.onsubmit=e=>{e.preventDefault();run('search',{query:state.query},data=>{state.results=data.results;input.blur();});};
-            content.append(form,node('p','friend-muted',tr('По логину ищем игроков онлайн (от 3 символов). Код друга можно вставить и без интернета: заявка дождётся подключения обоих игроков.','Username search finds online players (3+ characters). A friend code also works offline: requests wait until both players connect.')));
+            content.append(form,node('p','friend-muted',tr('Ищите по логину или логин#код среди игроков онлайн. QR и полная ссылка позволяют добавить друга без поиска; доставка заявки зависит от подключения и уведомлений.','Search online players by username or username#tag. QR and full links let you add a friend directly; request delivery depends on connectivity and notifications.')));
             if(state.results!==null)content.append(list(state.results.map(p=>{
                 const updated=[...d.friends,...d.incoming,...d.outgoing,...d.blocked].find(x=>x.id===p.id);return updated||{...p,relationship:'none'};
             }),tr('Игроки не найдены','No players found')));

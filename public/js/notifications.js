@@ -52,6 +52,7 @@
         acknowledge:events=>native?.acknowledge(JSON.stringify(events.map(e=>e.id))),
         notify:(events,id)=>events.forEach(e=>native?.event(JSON.stringify({...e,target:id})))};
     document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();openPending();}});
+    window.addEventListener('rc-screen-changed',()=>setTimeout(openPending,0));
     window.addEventListener('rc-daily-claimed',()=>window.RCLocalFriends?.syncNotifications());
     new MutationObserver(()=>{refresh();window.RCLocalFriends?.syncNotifications();}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
     refresh();window.RCLocalFriends?.ready.then(()=>window.RCLocalFriends.syncNotifications());setTimeout(openPending,1500);
