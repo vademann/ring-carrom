@@ -539,7 +539,7 @@ function materialLoaded(){
     if(document.getElementById('scr-settings')?.classList.contains('active'))global.renderSettings?.();
 }
 stoneMaterial.onload=materialLoaded;walnutMaterial.onload=materialLoaded;
-stoneMaterial.src='img/beige-stone.png';walnutMaterial.src='img/dark-walnut.png';
+stoneMaterial.src='img/beige-stone.png?v=3';walnutMaterial.src='img/dark-walnut.png';
 function feltTexture(w) {
     const T=currentTheme(),key=w.size+'|'+T.id+'|'+stoneTextureReady();
     if(feltCache?.key===key)return feltCache.cnv;
@@ -547,6 +547,7 @@ function feltTexture(w) {
     const g=cnv.getContext('2d');
     g.fillStyle=T.id==='classic'?'#ead9b9':T.felt1;g.fillRect(0,0,w.size,w.size);
     if(stoneTextureReady()){
+        // One complete 2m x 2m marble slab spans the field; never tile a small sample.
         g.drawImage(stoneMaterial,0,0,w.size,w.size);
         if(T.id!=='classic'){
             g.globalCompositeOperation='multiply';g.fillStyle=T.felt1;g.fillRect(0,0,w.size,w.size);
