@@ -75,7 +75,7 @@ window.RCProgress=(()=>{
         shot(potted,mode){if(mode==="tutorial")return;counters('potted',Math.max(0,potted));},
         botWin(){if(botGames.has(world))return;counters('wins',1);botGames.add(world);unlockCosmetics();},
         unlockCosmetics,
-        showResult(msg,index){const reward=msg.reward||{coins:0,xp:0};const detail=document.createElement('p');detail.id='onlineReward';detail.className='friend-muted';const record=msg.career?.history?.find(h=>h.game===msg.id);detail.textContent=`+${reward.coins} 💎 · +${reward.xp} XP`+(msg.statsPending?tr(' · Рейтинг ещё сохраняется',' · Rating save pending'):record?` · ${tr('Рейтинг','Rating')} ${msg.career.rating} (${record.delta>=0?'+':''}${record.delta})`:'');el('onlineReward')?.remove();el('overRes').append(detail);},
+        showResult(msg,index){const reward=msg.reward||{coins:0,xp:0};const detail=document.createElement('p');detail.id='onlineReward';detail.className='friend-muted';const record=msg.career?.history?.find(h=>h.game===msg.id);detail.textContent=`+${reward.coins} 💎 · +${reward.xp} XP`+(msg.statsPending?tr(' · Рейтинг ещё сохраняется',' · Rating save pending'):record?` · ${tr('Рейтинг','Rating')} ${msg.career.rating} (${record.delta>=0?'+':''}${record.delta})`:'');el('onlineReward')?.remove();el('overRes').append(detail);window.RCArcade?.decorateResult(msg);},
         result(msg,index){
             if(msg.career&&!msg.statsPending){careerData=msg.career;RCStore.set("rc_career",JSON.stringify(careerData));}
             const seen=read("rc_results",[]);if(!msg.id||seen.includes(msg.id))return;

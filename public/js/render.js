@@ -42,7 +42,7 @@ const THEMES = [
     {
         id: "night", ru: "Ночь", en: "Night",
         wood1: "#262833", wood2: "#15161d",
-        felt1: "#45408a", felt2: "#27245b", vignette: "rgba(0,0,10,0.25)",
+        felt1: "#29465b", felt2: "#132c40", vignette: "rgba(0,0,10,0.25)",
         mark: "rgba(126,164,255,0.72)",
         markRgb: "126,164,255", markSoft: "rgba(126,164,255,0.40)",
         baseline: "rgba(126,164,255,0.35)",
@@ -701,42 +701,26 @@ function drawRing(ctx, ring, color, ghost, blocked) {
     ctx.save();
     if (ghost) ctx.globalAlpha = 0.55;
     if (blocked) ctx.globalAlpha = 0.38;
-    // Soft contact shadow, with the centre left open to the table below.
-    ctx.shadowColor = "rgba(0,0,0,0.35)";
-    ctx.shadowBlur = band * 0.45;
-    ctx.beginPath();
-    ctx.arc(ring.x + band * 0.12, ring.y + band * 0.25, mid, 0, Math.PI * 2);
-    ctx.strokeStyle = T.shadow; ctx.lineWidth = band; ctx.stroke();
-    ctx.shadowBlur = 0;
+    // Flat annular plate: uniform planar face, hairline edges, low contact shadow.
+    // r/ri remain the exact collision radii; the opening stays transparent.
+    ctx.shadowColor = T.shadow;
+    ctx.shadowBlur = 0.65;
+    ctx.shadowOffsetY = 0.7;
     ctx.beginPath();
     ctx.arc(ring.x, ring.y, mid, 0, Math.PI * 2);
     ctx.strokeStyle = color; ctx.lineWidth = band; ctx.stroke();
-    // Directional lighting gives the plastic a lit upper-left and shaded lower-right.
-    const light = ctx.createLinearGradient(ring.x-ring.r, ring.y-ring.r, ring.x+ring.r, ring.y+ring.r);
-    light.addColorStop(0, "rgba(255,255,255,0.48)");
-    light.addColorStop(0.4, "rgba(255,255,255,0.08)");
-    light.addColorStop(0.65, "rgba(0,0,0,0.06)");
-    light.addColorStop(1, "rgba(0,0,0,0.38)");
-    ctx.strokeStyle = light; ctx.lineWidth = band; ctx.stroke();
-
-    // A rounded cross-section: recessed inner wall, bright shoulder, dark outer lip.
-    const bevel = ctx.createRadialGradient(ring.x,ring.y,ring.ri,ring.x,ring.y,ring.r);
-    bevel.addColorStop(0, "rgba(0,0,0,0.52)");
-    bevel.addColorStop(0.14, "rgba(0,0,0,0.18)");
-    bevel.addColorStop(0.34, "rgba(255,255,255,0.24)");
-    bevel.addColorStop(0.55, "rgba(255,255,255,0.08)");
-    bevel.addColorStop(0.8, "rgba(0,0,0,0.12)");
-    bevel.addColorStop(1, "rgba(0,0,0,0.48)");
-    ctx.strokeStyle = bevel; ctx.stroke();
-    ctx.lineCap = "round";
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.beginPath();
-    ctx.arc(ring.x, ring.y, mid + band * 0.1, -2.9, -1.1);
-    ctx.strokeStyle = "rgba(255,255,255,0.42)"; ctx.lineWidth = band * 0.2; ctx.stroke();
-    ctx.beginPath();ctx.arc(ring.x,ring.y,mid+band*0.1,-2.65,-2.03);
-    ctx.strokeStyle = "rgba(255,255,255,0.72)";ctx.lineWidth = band*0.09;ctx.stroke();
-    ctx.beginPath();ctx.arc(ring.x,ring.y,ring.ri+band*0.09,0.35,1.8);
-    ctx.strokeStyle = "rgba(255,255,255,0.32)";ctx.lineWidth = band*0.1;ctx.stroke();
-    ctx.lineCap = "butt";
+    ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+    ctx.moveTo(ring.x + ring.ri, ring.y);
+    ctx.arc(ring.x, ring.y, ring.ri, 0, Math.PI * 2, true);
+    ctx.fillStyle = color; ctx.fill('evenodd');
+    const edge = Math.min(0.65, band * 0.06);
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, ring.r - edge / 2, 0, Math.PI * 2);
+    ctx.moveTo(ring.x + ring.ri + edge / 2, ring.y);
+    ctx.arc(ring.x, ring.y, ring.ri + edge / 2, 0, Math.PI * 2, true);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = edge; ctx.stroke();
     if (ghost) {
         const t = (performance.now() / 900) % 1;
         ctx.beginPath();

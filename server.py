@@ -182,6 +182,7 @@ def valid_snapshot(state):
     def position(point):
         return isinstance(point, list) and len(point) >= 2 and all(type(v) in (int, float) and math.isfinite(v) and abs(v) < 2000 for v in point[:2])
     return (isinstance(state, dict) and type(state.get('turn')) is int and state['turn'] in (0, 1)
+            and state.get('colors',[None,None]) in ([None,None],['w','b'],['b','w'])
             and isinstance(state.get('scores'), list) and len(state['scores']) == 2
             and all(type(v) is int and 0 <= v <= 100 for v in state['scores'])
             and isinstance(state.get('stones'), list) and len(state['stones']) <= 10
@@ -556,7 +557,7 @@ async def websocket(request):
     return ws
 
 async def health(request):
-    return web.json_response({'status':'ok','version':'2.0','authoritativePhysics':True,'cloudCareer':cloud.enabled,'rooms':len(rooms),'clients':len(clients),'resumeGrace':GRACE})
+    return web.json_response({'status':'ok','version':'2.2','authoritativePhysics':True,'cloudCareer':cloud.enabled,'rooms':len(rooms),'clients':len(clients),'resumeGrace':GRACE})
 
 async def network_config(request):
     public_url=os.environ.get('RC_PUBLIC_URL') or os.environ.get('RENDER_EXTERNAL_URL')

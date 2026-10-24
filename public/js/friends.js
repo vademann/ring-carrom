@@ -4,6 +4,7 @@
     const tr = (ru,en) => I18N.lang === 'en' ? en : ru;
     const state = {data:null, tab:'friends', results:null, query:'', online:false, favorites:false,
         busy:false, syncing:false, connected:false, revision:0, dialog:null, messages:[], drafts:{}, selected:null, outgoing:null, pendingMessage:null, muted:new Set()};
+    const expandedCards=new Set();
     const errors = {
         login_format:['Логин: 3–20 символов, латинские буквы, цифры и _. Начните с буквы.','Use 3–20 letters, digits or _. Start with a Latin letter.'],
         login_taken:['Этот логин уже занят. Выберите другой.','This username is already taken.'],
@@ -114,6 +115,14 @@
             act(tr('Отменить заявку','Cancel request'),()=>run('cancel_request',{target:p.id}));
         }else act(tr('Добавить','Add friend'),()=>run('request',{target:p.id}),'primary');
         act(tr('Заблокировать','Block'),()=>confirmAction(p,'block',tr('Заблокировать игрока? Дружба и заявки будут удалены.','Block this player? Friendship and requests will be removed.')),'danger');
+        if(p.relationship==='friend') {
+            const extra=node('details','friend-more'),label=node('summary','',tr('Ещё','More'));
+            extra.append(label);
+            extra.open=expandedCards.has(p.id);
+            extra.ontoggle=()=>{if(!extra.isConnected)return;if(extra.open)expandedCards.add(p.id);else expandedCards.delete(p.id);};
+            for(const b of [...actions.children])if(!b.classList.contains('primary')&&!b.textContent.startsWith(tr('Сообщения','Messages')))extra.append(b);
+            actions.append(extra);
+        }
         return c;
     }
     function list(users,empty) {

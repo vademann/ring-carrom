@@ -20,6 +20,7 @@ let world = PHY.createWorld();
 let turn = 0;
 let phase = "aim";           // aim | drag | slide | moving | bot | botAim | over
 let scores = [0, 0];
+let playerColors = [null, null];
 let difficulty = +(RCStore.get("rc_diff") || 1);
 let soundVolume = Math.max(0, Math.min(1, +(RCStore.get("rc_sound_volume") ?? 0.8)));
 let musicVolume = Math.max(0, Math.min(1, +(RCStore.get("rc_music_volume") ?? 0.35)));
@@ -49,12 +50,12 @@ let turnDeadline = 0, serverClockOffset = 0, lastTimeoutMove = -1;
 let onlineSkips = [0,0];
 let waitingForState = false, pendingState = null, shotStartedAt = 0;
 function gameSnapshot() {
-    return { turn, scores: scores.slice(), stones: world.stones.filter(s => !s.done).map(s => [s.x, s.y, s.color]),
+    return { turn, scores: scores.slice(), colors:playerColors.slice(), stones: world.stones.filter(s => !s.done).map(s => [s.x, s.y, s.color]),
         ring: [world.ring.x, world.ring.y], deadline: turnDeadline, winner: pendingWinner, over: phase === "over" };
 }
 function validSnapshot(s) {
     const position = p => Array.isArray(p) && p.length >= 2 && p.slice(0,2).every(v => Number.isFinite(v) && Math.abs(v) < PHY.SIZE * 2);
-    return s && (s.turn === 0 || s.turn === 1) && Array.isArray(s.scores) && s.scores.length === 2 && s.scores.every(v => Number.isInteger(v) && v >= 0 && v <= 100) &&
+    return s && RCMatchRules.validColors(s.colors||[null,null]) && (s.turn === 0 || s.turn === 1) && Array.isArray(s.scores) && s.scores.length === 2 && s.scores.every(v => Number.isInteger(v) && v >= 0 && v <= 100) &&
         Array.isArray(s.stones) && s.stones.length <= 10 && s.stones.every(p => position(p) && (p[2] === "w" || p[2] === "b")) && position(s.ring) &&
         (s.winner === null || s.winner === 0 || s.winner === 1) && typeof s.over === "boolean";
 }
@@ -63,6 +64,7 @@ function restoreSnapshot(s, move) {
     clearTimeout(comboFinishTimer);
     turnDeadline = Number.isFinite(s.deadline) ? s.deadline : Date.now()+60000;
     turn = s.turn; scores = s.scores.slice(); pendingWinner = s.winner;
+    playerColors=(s.colors||[null,null]).slice();
     world.stones = s.stones.map(p => PHY.makeBody(p[0], p[1], world.stoneR, PHY.P.STONE_MASS, "stone", p[2]));
     world.ring = PHY.makeBody(s.ring[0], s.ring[1], world.ringR, PHY.P.RING_MASS, "ring");
     PHY.rebuild(world);
@@ -85,7 +87,7 @@ function receiveState(msg) {
     if (msg.reset || msg.timeout) { restoreSnapshot(msg.state, msg.move); return; }
     if (phase === "moving") { pendingState = msg; return; }
     const same = !waitingForState && msg.move === onlineMove && turn === msg.state.turn &&
-        JSON.stringify(scores) === JSON.stringify(msg.state.scores) && JSON.stringify(gameSnapshot().stones) === JSON.stringify(msg.state.stones);
+        JSON.stringify(scores) === JSON.stringify(msg.state.scores) && JSON.stringify(playerColors)===JSON.stringify(msg.state.colors||[null,null]) && JSON.stringify(gameSnapshot().stones) === JSON.stringify(msg.state.stones);
     if (!same) restoreSnapshot(msg.state, msg.move);
 }
 function localProfile() {
@@ -114,7 +116,7 @@ function mulberry32(seed) {
     };
 }
 
-const colorOf = t => (t === 0 ? "w" : "b");
+const colorOf = t => playerColors[t];
 
 // ═══════════════ Аудио ═══════════════
 let audioCtx = null, effectsBus = null;
@@ -171,8 +173,10 @@ const ev = {
     wall(sp) { impactSound(Math.min(0.35, sp / 1100), "wall"); buzz(Math.min(16, sp / 45)); },
     pot(b) {
         if (b.type === "stone") {
+            RCMatchRules.assign(playerColors,turn,b.color);
             pottedAll++;
             if (b.color === colorOf(turn)) pottedOwn++; else pottedOpp++;
+            updateBar();
             potAnims.push({ x: b.x, y: b.y, t: 0 });
             spawnSparks(b.x, b.y);
             potSound(); buzz(30);
@@ -231,17 +235,18 @@ function nameOf(t) {
     if (mode === "bot") return t === 0 ? (RCStore.get("rc_name") || I18N.t("defaultName")) : (botPersona ? botPersona.name : I18N.t("nameBot"));
     return t === 0 ? I18N.t("nameP1") : I18N.t("nameP2");
 }
-function colorName(t) { return t === 0 ? I18N.t("colorW") : I18N.t("colorB"); }
+function colorName(t) { return I18N.t(colorOf(t)==='w'?'colorW':colorOf(t)==='b'?'colorB':'colorOpen'); }
+function puckIndicator(t){return colorOf(t)?`<img class="puckico" alt="${escapeText(colorName(t))}" src="${RND.pieceURL(colorOf(t))}">`:`<span class="color-open">${escapeText(I18N.t('colorOpen'))}</span>`;}
 
 function updateBar() {
-    if (mode === "tutorial") { $("barMid").textContent = ""; return; }
+
     const m = $("barMid");
     if (mode === "free" || mode === "accuracy" || mode === "break" || mode === "tutorial") {
         let txt = "";
         if (mode === "free" || mode === "tutorial") txt = I18N.t("trainFree", { n: drill.shots, m: drill.potted });
         if (mode === "accuracy") txt = I18N.t("trainAcc", { n: Math.min(drill.shots + 1, 10), m: drill.potted });
         if (mode === "break") txt = I18N.t("trainBreak", { n: Math.min(drill.attempts + 1, 3) });
-        m.innerHTML = `<div class="bar-note">${txt}</div>`;
+        m.innerHTML = `<div class="bar-note">${txt}<br>${escapeText(colorName(0))}</div>`;
         return;
     }
     const dim = phase === "over" ? " dim" : "";
@@ -257,14 +262,14 @@ function updateBar() {
         ? `<div class="prize"><span class="gemicon"></span><b>+${reward}</b></div>`
         : `<div class="prize"><b style="color:#cdb87a">VS</b>${mode === "online" ? '<span id="turnTimer" role="timer">60</span>' : ""}</div>`;
     m.innerHTML =
-        `<div class="side"><img class="avbig" src="${myAv}">` +
+        `<div class="side${turn===left?' current-turn':''}"><img class="avbig" src="${myAv}">` +
         `<div class="sidecol"><div class="nm">${escapeText(nameOf(left))}</div>` +
-        `<div class="scoreline"><img class="puckico" src="${RND.pieceURL(colorOf(left))}"><span class="pts">${scores[left]}</span></div>` +
+        `<div class="scoreline">${puckIndicator(left)}<span class="pts">${scores[left]}</span></div>` +
         `</div></div>` +
         center +
-        `<div class="side right"><img class="avbig" ${oppAv ? `src="${oppAv}"` : 'style="visibility:hidden"'}>` +
+        `<div class="side right${turn===right?' current-turn':''}"><img class="avbig" ${oppAv ? `src="${oppAv}"` : 'style="visibility:hidden"'}>` +
         `<div class="sidecol"><div class="nm">${escapeText(nameOf(right))}</div>` +
-        `<div class="scoreline"><span class="pts">${scores[right]}</span><img class="puckico" src="${RND.pieceURL(colorOf(right))}"></div>` +
+        `<div class="scoreline"><span class="pts">${scores[right]}</span>${puckIndicator(right)}</div>` +
         `</div></div>`;
     RCChat.positionBubbles();
 }
@@ -294,6 +299,7 @@ function setHint(text) {
 // ═══════════════ Партия ═══════════════
 function freshGameState() {
     scores = [0, 0];
+    playerColors = [null, null];
     turn = 0;
     pottedAll = pottedOwn = pottedOpp = 0;
     ringFellThisShot = false;
@@ -362,7 +368,7 @@ function remainingColor(color) {
 }
 
 function endShot() {
-    if ((mode !== "online" && (mode !== "bot" || turn === 0)) || (mode === "online" && onlineShotOwner === myIndex)) window.RCProgress?.shot(pottedAll,mode);
+    if ((mode !== "online" && (mode !== "bot" || turn === 0)) || (mode === "online" && onlineShotOwner === myIndex)) window.RCProgress?.shot(pottedOwn,mode);
     finishLocalShot();
     if (mode !== "online") return;
     if (onlineShotOwner === myIndex) {
@@ -380,8 +386,8 @@ function finishLocalShot() {
     const scoringMode = (mode === "pvp" || mode === "bot" || mode === "online");
 
     if (mode === "break") {
-        drill.results.push(pottedAll);
-        drill.potted += pottedAll;
+        drill.results.push(pottedOwn);
+        drill.potted += pottedOwn;
         drill.attempts++;
         if (drill.attempts >= 3) {
             const best = Math.max(...drill.results);
@@ -394,8 +400,8 @@ function finishLocalShot() {
                 I18N.t("record", { n: bestRecord("rc_best_break") }));
             return;
         }
-        PHY.rack(world, 0);
-        showToast(`${I18N.t("toastBreak", { n: drill.attempts })} · ${pottedAll} ${plural(pottedAll)}`);
+        PHY.rack(world, 0); playerColors=[null,null];
+        showToast(`${I18N.t("toastBreak", { n: drill.attempts })} · ${pottedOwn} ${plural(pottedOwn)}`);
         resetShotCounters();
         phase = "aim";
         updateBar();
@@ -404,7 +410,7 @@ function finishLocalShot() {
     }
 
     if (mode === "accuracy") {
-        drill.potted += pottedAll;
+        drill.potted += pottedOwn;
         updateBar();
         if (drill.shots >= 10) {
             saveBest("rc_best_accuracy", drill.potted);
@@ -415,14 +421,14 @@ function finishLocalShot() {
                 I18N.t("record", { n: bestRecord("rc_best_accuracy") }));
             return;
         }
-        if (!world.stones.some(s => !s.done)) PHY.rack(world, 0);
+        if (colorOf(0) && remainingColor(colorOf(0)) === 0) { PHY.rack(world, 0); playerColors=[null,null]; updateBar(); }
     }
 
     if (mode === "free" || mode === "tutorial") {
-        drill.potted += pottedAll;
+        drill.potted += pottedOwn;
         updateBar();
-        if (pottedAll > 0) showToast(`+${pottedAll}`);
-        if (!world.stones.some(s => !s.done)) PHY.rack(world, 0);
+        if (pottedOwn > 0) showToast(`+${pottedOwn}`);
+        if (colorOf(0) && remainingColor(colorOf(0)) === 0) { PHY.rack(world, 0); playerColors=[null,null]; updateBar(); }
     }
 
     if (scoringMode) {
@@ -437,17 +443,9 @@ function finishLocalShot() {
             showToast(I18N.t("toastOppPot"));
         }
 
-        const wLeft = remainingColor("w");
-        const bLeft = remainingColor("b");
-        if (wLeft === 0 || bLeft === 0) {
-            if (wLeft === 0 && bLeft === 0) {
-                pendingWinner = scores[0] === scores[1] ? null : (scores[0] > scores[1] ? 0 : 1);
-            } else {
-                pendingWinner = wLeft === 0 ? 0 : 1;
-            }
-        }
-
-        if (wLeft === 0 || bLeft === 0) {
+        const outcome=RCMatchRules.outcome(world.stones,playerColors,scores);
+        pendingWinner=outcome.winner;
+        if (outcome.over) {
             phase = "over";
             updateBar();
             clearTimeout(comboFinishTimer);
@@ -502,6 +500,7 @@ function spawnSparks(x, y) {
 // конфетти
 let confettiOn = false, confettiParts = [], confettiLast = 0;
 function startConfetti() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const cv = $("confettiC");
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
     cv.width = Math.round(innerWidth * DPR);
@@ -561,6 +560,7 @@ function showWin(reward) {
     $("winXp").textContent = I18N.t("winExperience", {n:reward});
     $("winTitle").textContent = I18N.t("winTitle");
     $("winOv").classList.add("open");
+    window.RCArcade?.decorateResult(null);
     startConfetti();
     const el = $("winAmount");
     const t0 = performance.now();
@@ -601,6 +601,7 @@ function finishMatch() {
         return;
     }
     showOver(h, "");
+    window.RCArcade?.decorateResult(null);
     if (pendingWinner !== null && (mode === "pvp" || pendingWinner === myIndex)) {
         celebrate("celebrateWin", "celebrateWinDetail", {}, "🏆");
     }
@@ -672,7 +673,7 @@ function startBotTurn() {
     $("thinking").textContent = I18N.t("botThinking");
     $("thinking").classList.add("show");
     const snap = PHY.cloneWorld(world);
-    const gen = BOT.planShots(snap, difficulty, scores);
+    const gen = BOT.planShots(snap, difficulty, scores, colorOf(1));
     function chunk() {
         if (phase !== "bot") { $("thinking").classList.remove("show"); return; }
         const t0 = performance.now();

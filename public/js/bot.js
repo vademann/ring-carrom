@@ -49,17 +49,19 @@ function aimingError(angle) {
 }
 
 // Оценка исхода удара. level влияет на учёт безопасности (у сложного).
-function tryShot(w, x, y, angle, speed, level, matchScores) {
+function tryShot(w, x, y, angle, speed, level, matchScores, ownColor = 'b') {
     const c = PHY.cloneWorld(w);
     PHY.applyShot(c, x, y, angle, speed);
     // At reduced friction, allow enough time for the strongest legal shot to settle.
     const maxSpeed = PHY.P.MAX_SHOT_V * (1 + PHY.P.E_RING);
     const horizon = Math.log1p(PHY.P.FRICTION_K * maxSpeed / PHY.P.FRICTION_C) / PHY.P.FRICTION_K + 2;
-    const settled = PHY.simulate(c, null, horizon);
+    let chosen=ownColor;
+    const settled = PHY.simulate(c, {hit(){},wall(){},pot(b){if(b.type==='stone'&&!chosen)chosen=b.color;}}, horizon);
 
     const cnt = (world, color) => world.stones.filter(s => s.done && s.color === color).length;
-    const own = cnt(c, "b") - cnt(w, "b");
-    const opp = cnt(c, "w") - cnt(w, "w");
+    const own = chosen ? cnt(c, chosen) - cnt(w, chosen) : 0;
+    const opponentColor=chosen==='w'?'b':'w';
+    const opp = chosen ? cnt(c, opponentColor) - cnt(w, opponentColor) : 0;
     const ringPotted = !w.ring.done && !!c.ring.done;
 
     // Compare positions before and after the shot. Absolute closeness rewards
@@ -74,7 +76,7 @@ function tryShot(w, x, y, angle, speed, level, matchScores) {
         const before = w.stones[i], after = c.stones[i];
         if (before.done || after.done) continue;
         const moved = Math.hypot(after.x - before.x, after.y - before.y);
-        if (before.color === "b") {
+        if (!chosen || before.color === chosen) {
             ownMotion += Math.min(moved, 120);
             ownProgress += pocketValue(after) - pocketValue(before);
         } else {
@@ -82,11 +84,11 @@ function tryShot(w, x, y, angle, speed, level, matchScores) {
             oppProgress += pocketValue(after) - pocketValue(before);
         }
     }
-    const ownLeft = c.stones.filter(s => !s.done && s.color === "b").length;
-    const oppLeft = c.stones.filter(s => !s.done && s.color === "w").length;
-    const finalOwn = Math.max(0, (matchScores ? matchScores[1] : cnt(w, "b")) + own - (ringPotted ? 2 : 0));
-    const finalOpp = (matchScores ? matchScores[0] : cnt(w, "w")) + opp;
-    const winner = ownLeft === 0 && oppLeft === 0
+    const ownLeft = c.stones.filter(s => !s.done && s.color === chosen).length;
+    const oppLeft = c.stones.filter(s => !s.done && s.color === opponentColor).length;
+    const finalOwn = Math.max(0, (matchScores ? matchScores[1] : cnt(w, chosen)) + own - (ringPotted ? 2 : 0));
+    const finalOpp = (matchScores ? matchScores[0] : cnt(w, opponentColor)) + opp;
+    const winner = !chosen ? null : ownLeft === 0 && oppLeft === 0
         ? (finalOwn === finalOpp ? -1 : finalOwn > finalOpp ? 1 : 0)
         : ownLeft === 0 ? 1 : oppLeft === 0 ? 0 : null;
     const keepsTurn = own > 0 && opp === 0 && !ringPotted;
@@ -101,7 +103,7 @@ function tryShot(w, x, y, angle, speed, level, matchScores) {
     const safety = level >= 2 ? 18 : level === 1 ? 9 : 0;
     if (safety) {
         for (const s of c.stones) {
-            if (s.done || s.color !== "w") continue;
+            if (s.done || !chosen || s.color !== opponentColor) continue;
             let md = Infinity;
             for (const p of c.pockets) md = Math.min(md, Math.hypot(p.x - s.x, p.y - s.y));
             if (md < c.pocketR * 1.3) score -= safety;
@@ -121,11 +123,11 @@ function tryShot(w, x, y, angle, speed, level, matchScores) {
 
 // Касается ли луч броска своей шашки (с учётом дыры кольца:
 // шашка строго по центру луча проскакивает через дыру — это не контакт)
-function rayTouchesOwn(w, x, y, angle) {
+function rayTouchesOwn(w, x, y, angle, ownColor = 'b') {
     const ux = Math.cos(angle), uy = Math.sin(angle);
     const Ri = w.ringR * PHY.P.RING_INNER, Ro = w.ringR;
     for (const s of w.stones) {
-        if (s.done || s.color !== "b") continue;
+        if (s.done || (ownColor && s.color !== ownColor)) continue;
         const dx = s.x - x, dy = s.y - y;
         const proj = dx * ux + dy * uy;
         if (proj <= 0) continue;
@@ -135,7 +137,7 @@ function rayTouchesOwn(w, x, y, angle) {
     return false;
 }
 
-function* planShots(w, level, matchScores) {
+function* planShots(w, level, matchScores, ownColor = 'b') {
     const by = PHY.baselineY(w, 1);
     const range = PHY.baselineRange(w);
     const seen = new Set();
@@ -147,7 +149,7 @@ function* planShots(w, level, matchScores) {
         cands.push({ x, a, pf });
     };
 
-    const own = w.stones.filter(s => !s.done && s.color === "b");
+    const own = w.stones.filter(s => !s.done && (!ownColor || s.color === ownColor));
     const bottom = w.pockets.filter(p => p.y > by + 30);
 
     // ── 1. Прицельные: своя шашка → луза ──
@@ -246,7 +248,7 @@ function* planShots(w, level, matchScores) {
             const x = PHY.freeRingX(w, range[0] + (range[1] - range[0]) * ip / 2, 1);
             for (let ia = 0; ia < 14; ia++) {
                 const a = Math.PI / 2 - 1.25 + (2.5 * ia) / 13;
-                if (rayTouchesOwn(w, x, by, a)) add(x, a, 0.55 + 0.3 * (ia % 2));
+                if (rayTouchesOwn(w, x, by, a, ownColor)) add(x, a, 0.55 + 0.3 * (ia % 2));
             }
         }
     }
@@ -256,7 +258,7 @@ function* planShots(w, level, matchScores) {
     const scored = [];
     let n = 0;
     for (const c of cands) {
-        const res = tryShot(w, c.x, by, c.a, c.pf * PHY.P.MAX_SHOT_V, level, matchScores);
+        const res = tryShot(w, c.x, by, c.a, c.pf * PHY.P.MAX_SHOT_V, level, matchScores, ownColor);
         scored.push({ ...c, res });
         if (++n % 10 === 0) yield { n, total };
     }
@@ -269,7 +271,7 @@ function* planShots(w, level, matchScores) {
             const count = level === 2 ? 20 : 12;
             for (let i = 0; i <= count; i++) {
                 const a = 0.25 + i * (Math.PI - 0.5) / count;
-                if (!rayTouchesOwn(w, x, by, a)) continue;
+                if (!rayTouchesOwn(w, x, by, a, ownColor)) continue;
                 for (const pf of [0.45, 0.75]) {
                     const key = Math.round(x) + "|" + a.toFixed(3) + "|" + pf.toFixed(2);
                     if (!seen.has(key)) { seen.add(key); broad.push({ x, a, pf }); }
@@ -277,7 +279,7 @@ function* planShots(w, level, matchScores) {
             }
         }
         for (const c of broad) {
-            scored.push({ ...c, res: tryShot(w, c.x, by, c.a, c.pf * PHY.P.MAX_SHOT_V, level, matchScores) });
+            scored.push({ ...c, res: tryShot(w, c.x, by, c.a, c.pf * PHY.P.MAX_SHOT_V, level, matchScores, ownColor) });
             if (++n % 10 === 0) yield { n, total: total + broad.length };
         }
     }
@@ -290,7 +292,7 @@ function* planShots(w, level, matchScores) {
     if (!pool.length || !pool[0]) {
         let best = null, bd = Infinity;
         for (const s of w.stones) {
-            if (s.done || s.color !== "b") continue;
+            if (s.done || (ownColor && s.color !== ownColor)) continue;
             const x = PHY.freeRingX(w, s.x, 1);
             const d = Math.hypot(s.x - x, s.y - by);
             if (d < bd) { bd = d; best = { x, a: Math.atan2(s.y - by, s.x - x) }; }
@@ -309,7 +311,7 @@ function* planShots(w, level, matchScores) {
         let worst = candidate.res.score;
         for (const sign of [-1, 1]) {
             const outcome = tryShot(w, candidate.x, by, candidate.a * (1 + sign * AIM_ERROR),
-                candidate.pf * PHY.P.MAX_SHOT_V, level, matchScores);
+                candidate.pf * PHY.P.MAX_SHOT_V, level, matchScores, ownColor);
             worst = Math.min(worst, outcome.score);
         }
         const reliable = candidate.res.score * 0.65 + worst * 0.35;
